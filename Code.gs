@@ -557,6 +557,10 @@ function createInfoSheet() {
 
   sheet.setFrozenRows(1);
   Logger.log('"info" sheet header setup completed.');
+
+  // Apply protection so only admin can edit/delete
+  protectInfoSheet(sheet);
+
   return sheet;
 }
 
@@ -639,24 +643,65 @@ function updateInfoSheetRow(taskId, updates) {
   Logger.log("Info sheet: taskId not found: " + taskId);
 }
 
+// ─── Protect info sheet — only admin can edit/delete ────────────────
+// Uses Google Sheets native Protection API (enforced at Google level).
+// Scripts (triggers) bypass this and can still write via appendRow/setValue.
+var INFO_ADMIN_EMAIL = "ezabulb@gmail.com";
+
+function protectInfoSheet(sheet) {
+  try {
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+    if (!sheet) sheet = ss.getSheetByName(INFO_SHEET_NAME);
+    if (!sheet) return;
+
+    // Remove any existing protections on this sheet
+    var existingProtections = sheet.getProtections(SpreadsheetApp.ProtectionType.SHEET);
+    existingProtections.forEach(function(p) { p.remove(); });
+
+    // Create new protection
+    var protection = sheet.protect();
+    protection.setDescription("Info tab — Read-only for all except admin (" + INFO_ADMIN_EMAIL + ")");
+
+    // Remove domain editing if enabled
+    if (protection.canDomainEdit()) {
+      protection.setDomainEdit(false);
+    }
+
+    // Set editors: only admin + script owner (effective user who installed triggers)
+    var allEditors = protection.getEditors().map(function(u) { return u.getEmail(); });
+    allEditors.forEach(function(email) {
+      try { protection.removeEditor(email); } catch(e) {}
+    });
+    protection.addEditor(INFO_ADMIN_EMAIL);            // Admin can edit
+    protection.addEditor(Session.getEffectiveUser());  // Script owner can edit (needed for triggers)
+
+    Logger.log("Info sheet protected. Only admin (" + INFO_ADMIN_EMAIL + ") can edit.");
+  } catch(e) {
+    Logger.log("protectInfoSheet error: " + e.message);
+  }
+}
+
 // ─── ON OPEN ─────────────────────────────────────────────────────────────────
 function onOpen() {
   createOrUpdateMenu();
   setupCreditRefreshTrigger();
-  // Ensure the info tab exists and is initialized with headers when spreadsheet is opened
+  // Ensure the info tab exists, has correct headers, and is protected
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var infoSheet = ss.getSheetByName(INFO_SHEET_NAME);
     if (!infoSheet) {
-      createInfoSheet();
+      createInfoSheet(); // creates + protects
     } else {
-      // Check if API Account header is missing and migrate
+      // Check if headers need migration
       var headers = infoSheet.getRange(1, 1, 1, Math.max(infoSheet.getLastColumn(), 1)).getValues()[0];
       var hasApiAccount = headers.some(function(h) {
         return h && h.toString().toLowerCase().trim() === "api account";
       });
       if (!hasApiAccount) {
-        createInfoSheet();
+        createInfoSheet(); // migrates + protects
+      } else {
+        // Re-apply protection on every open (in case it was removed manually)
+        protectInfoSheet(infoSheet);
       }
     }
   } catch (e) {
