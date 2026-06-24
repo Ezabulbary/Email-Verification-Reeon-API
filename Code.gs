@@ -619,28 +619,57 @@ function logActivityToInfoSheet(params) {
 }
 
 // ─── Update a row in info sheet (find by Task ID) ──────────────────
+// Reads column positions from ACTUAL sheet headers — works even if schema changed.
 function updateInfoSheetRow(taskId, updates) {
   var ss    = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(INFO_SHEET_NAME);
-  if (!sheet || sheet.getLastRow() < 2) return;
+  if (!sheet || sheet.getLastRow() < 2) {
+    Logger.log("updateInfoSheetRow: info sheet missing or empty.");
+    return;
+  }
 
-  var taskIdColIdx = INFO_HEADERS.indexOf("Task ID");     // 0-indexed
-  var data         = sheet.getRange(2, 1, sheet.getLastRow() - 1, INFO_HEADERS.length).getValues();
+  var lastCol = sheet.getLastColumn();
+
+  // Read actual headers from the sheet (not from INFO_HEADERS constant)
+  var actualHeaders = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var taskIdColIdx  = -1;
+  for (var i = 0; i < actualHeaders.length; i++) {
+    if (actualHeaders[i] && actualHeaders[i].toString().trim() === "Task ID") {
+      taskIdColIdx = i;
+      break;
+    }
+  }
+
+  if (taskIdColIdx === -1) {
+    Logger.log("updateInfoSheetRow: 'Task ID' column not found in info sheet.");
+    return;
+  }
+
+  var data = sheet.getRange(2, 1, sheet.getLastRow() - 1, lastCol).getValues();
 
   for (var r = 0; r < data.length; r++) {
-    if (data[r][taskIdColIdx] === taskId) {
+    if (data[r][taskIdColIdx] && data[r][taskIdColIdx].toString().trim() === taskId.toString().trim()) {
       var sheetRow = r + 2; // 1-indexed + header row
       Object.keys(updates).forEach(function(col) {
-        var colIdx = INFO_HEADERS.indexOf(col);
+        // Find the column in actual sheet headers
+        var colIdx = -1;
+        for (var c = 0; c < actualHeaders.length; c++) {
+          if (actualHeaders[c] && actualHeaders[c].toString().trim() === col) {
+            colIdx = c;
+            break;
+          }
+        }
         if (colIdx !== -1) {
           sheet.getRange(sheetRow, colIdx + 1).setValue(updates[col]);
+        } else {
+          Logger.log("updateInfoSheetRow: column '" + col + "' not found in sheet.");
         }
       });
       Logger.log("Info sheet updated: row " + sheetRow + " | taskId: " + taskId);
       return;
     }
   }
-  Logger.log("Info sheet: taskId not found: " + taskId);
+  Logger.log("Info sheet: taskId not found: '" + taskId + "'");
 }
 
 // ─── Protect info sheet — only admin can edit/delete ────────────────

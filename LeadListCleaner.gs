@@ -274,7 +274,8 @@ function llcAggressivePoll(tasks, sheet, scriptStartTime) {
 
       try {
         updateInfoSheetRow(task.taskId, { "Status": "completed", "Progress": "100%", "Action": "done" });
-      } catch(e) {}
+        SpreadsheetApp.flush();
+      } catch(e) { Logger.log("updateInfoSheetRow error (poll): " + e.message); }
     });
 
     pending = stillPending;
@@ -382,7 +383,8 @@ function checkPendingTaskResults() {
 
     try {
       updateInfoSheetRow(task.taskId, { "Status": "completed", "Progress": "100%", "Action": "done" });
-    } catch(e) {}
+      SpreadsheetApp.flush();
+    } catch(e) { Logger.log("updateInfoSheetRow error (checkPending): " + e.message); }
   });
 
   llcStoreTasks(remainingTasks);
