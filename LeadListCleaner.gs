@@ -60,6 +60,21 @@ function cleanLeadList() {
     sheet.getRange(1, statusColIdx + 1).setValue("Verification Status");
   }
 
+  // Find or create Verification Date column (always right after Verification Status)
+  var freshHeaders = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var dateColIdx = -1;
+  for (var i = 0; i < freshHeaders.length; i++) {
+    var fh = freshHeaders[i] ? freshHeaders[i].toString().toLowerCase().trim() : "";
+    if (fh === "verification date") {
+      dateColIdx = i;
+    }
+  }
+  if (dateColIdx === -1) {
+    sheet.insertColumnAfter(statusColIdx + 1);
+    dateColIdx = statusColIdx + 1;
+    sheet.getRange(1, dateColIdx + 1).setValue("Verification Date");
+  }
+
   var lastRow = sheet.getLastRow();
   if (lastRow < 2) { ui.alert("❌ No data found in sheet."); return; }
 
@@ -145,7 +160,8 @@ function cleanLeadList() {
         taskId:    result.task_id,
         sheetName: sheetName,
         statusCol: statusColIdx + 1,  // 1-indexed
-        emailCol:  emailColIdx  + 1   // 1-indexed
+        emailCol:  emailColIdx  + 1,  // 1-indexed
+        dateCol:   dateColIdx   + 1   // 1-indexed
       };
       successTasks.push(taskMeta);
       Logger.log(batch.account + " ✅ Task: " + result.task_id + " (" + emailList.length + " emails)");
@@ -434,6 +450,7 @@ function llcRecoverLostTasks() {
     var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
     var emailColIdx = -1;
     var statusColIdxSheet = -1;
+    var dateColIdxSheet = -1;
     
     for (var i = 0; i < headers.length; i++) {
       var h = headers[i] ? headers[i].toString().toLowerCase().trim() : "";
@@ -442,6 +459,9 @@ function llcRecoverLostTasks() {
       }
       if (h === "verification status" || h === "status") {
         statusColIdxSheet = i;
+      }
+      if (h === "verification date") {
+        dateColIdxSheet = i;
       }
     }
     
@@ -476,8 +496,9 @@ function llcRecoverLostTasks() {
                 apiKey: apiKey,
                 taskId: taskId,
                 sheetName: sheetName,
-                statusCol: statusColIdxSheet + 1, // 1-indexed
-                emailCol: emailColIdx + 1         // 1-indexed
+                statusCol: statusColIdxSheet + 1,                              // 1-indexed
+                emailCol:  emailColIdx + 1,                                    // 1-indexed
+                dateCol:   dateColIdxSheet !== -1 ? dateColIdxSheet + 1 : null // 1-indexed
               });
               Logger.log("Recovered task metadata from info sheet. ID: " + taskId + ", Account: " + account + ", Sheet: " + sheetName);
             }
@@ -514,6 +535,15 @@ function llcWriteResultsToSheet(task, resultObj, spreadsheet) {
   var statusRange  = sheet.getRange(2, task.statusCol, numRows, 1);
   var statusValues = statusRange.getValues();
 
+  // Date column setup (if available)
+  var dateRange  = null;
+  var dateValues = null;
+  if (task.dateCol) {
+    dateRange  = sheet.getRange(2, task.dateCol, numRows, 1);
+    dateValues = dateRange.getValues();
+  }
+  var today = new Date();
+
   var written   = 0;
 
   // Lowercase all keys in resultObj to prevent case mismatches
@@ -534,13 +564,17 @@ function llcWriteResultsToSheet(task, resultObj, spreadsheet) {
     if (res) {
       var status = res.status || "unknown";
       statusValues[r][0] = status;
+      if (dateValues) dateValues[r][0] = today; // Write verification date
       written++;
     }
   }
 
-  // Write the entire updated status column back in a single API call
+  // Write the entire updated status & date columns back in single API calls
   if (written > 0) {
     statusRange.setValues(statusValues);
+    if (dateRange && dateValues) {
+      dateRange.setValues(dateValues);
+    }
   }
 
   return written;
@@ -607,7 +641,8 @@ function llcStoreTasks(tasks) {
       taskId:    t.taskId,
       sheetName: t.sheetName,
       statusCol: t.statusCol,
-      emailCol:  t.emailCol
+      emailCol:  t.emailCol,
+      dateCol:   t.dateCol || null  // Verification Date column (1-indexed)
     };
   });
   PropertiesService.getScriptProperties().setProperty(LLC_TASKS_PROP_KEY, JSON.stringify(slim));

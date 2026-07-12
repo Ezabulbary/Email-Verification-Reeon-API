@@ -62,6 +62,21 @@ function verifyEmails(tabName) {
     sheet.getRange(1, statusColumnIndex).setValue("Verification Status");
   }
 
+  // Find or create Verification Date column (right after Verification Status)
+  var freshHeaders2 = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  var dateColumnIndex = -1;
+  for (var di = 0; di < freshHeaders2.length; di++) {
+    var dh = freshHeaders2[di] ? freshHeaders2[di].toString().toLowerCase().trim() : "";
+    if (dh === "verification date") {
+      dateColumnIndex = di + 1;
+    }
+  }
+  if (dateColumnIndex === -1) {
+    sheet.insertColumnAfter(statusColumnIndex);
+    dateColumnIndex = statusColumnIndex + 1;
+    sheet.getRange(1, dateColumnIndex).setValue("Verification Date");
+  }
+
   var emailData = sheet.getRange(2, emailColumnIndex, lastRow - 1, 1).getValues().flat();
   var statusData = sheet.getRange(2, statusColumnIndex, lastRow - 1, 1).getValues().flat();
 
@@ -435,6 +450,7 @@ function updateSheetWithTaskResult(tabName, taskId, apiKey) {
   var headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
   var emailCol = -1;
   var statusCol = -1;
+  var dateCol = -1;
   for (var i = 0; i < headers.length; i++) {
     var h = headers[i] ? headers[i].toString().toLowerCase().trim() : "";
     if (h === "email") {
@@ -442,6 +458,9 @@ function updateSheetWithTaskResult(tabName, taskId, apiKey) {
     }
     if (h === "verification status" || h === "status") {
       statusCol = i + 1;
+    }
+    if (h === "verification date") {
+      dateCol = i + 1;
     }
   }
   if (emailCol === -1 || statusCol === -1) return;
@@ -467,6 +486,9 @@ function updateSheetWithTaskResult(tabName, taskId, apiKey) {
         var result = resultsLower[email];
         if (result) {
           sheet.getRange(i + 2, statusCol).setValue(result.status || "Unknown");
+          if (dateCol !== -1) {
+            sheet.getRange(i + 2, dateCol).setValue(new Date()); // Write verification date
+          }
         }
       }
       Logger.log("Updated verification results for tab: " + tabName);
