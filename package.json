@@ -1,0 +1,29 @@
+{
+  "name": "email-verification-dashboard",
+  "version": "1.0.0",
+  "description": "Reoon email verification dashboard (admin + user roles) — ported from the Google Apps Script tools",
+  "main": "server/index.js",
+  "private": true,
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --watch server/index.js",
+    "create-admin": "node server/scripts/createAdmin.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.7.0",
+    "cookie-session": "^2.1.0",
+    "csv-parse": "^5.6.0",
+    "csv-stringify": "^6.5.2",
+    "dotenv": "^16.4.7",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1"
+  },
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
+}

@@ -1,0 +1,19 @@
+# ── Google Apps Script (original Sheets code — kept locally, not tracked) ──
+google-apps-script/
+
+# ── Node ──
+node_modules/
+npm-debug.log*
+
+# ── Runtime data (database, uploads, exports) ──
+data/
+
+# ── Environment / secrets ──
+.env
+.env.local
+
+# ── OS / editor ──
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

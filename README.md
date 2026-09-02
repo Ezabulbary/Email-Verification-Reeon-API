@@ -1,98 +1,139 @@
-# Email Verification — Reoon API (Google Apps Script)
+# 📧 Email Verification Dashboard — Reoon API (Admin + User roles)
 
-A powerful, multi-account email verification automation built entirely in **Google Apps Script**, integrated directly into Google Sheets.
+A standalone web dashboard (Node.js + Express + SQLite) that runs the same tools as the
+Google Sheets automation, without Google Sheets:
 
----
+| Tool | Google Sheet menu item | Dashboard |
+|---|---|---|
+| ⚡ Bulk Lead List Clean (7 accounts, daily credits only) | `🚀 Lead List Clean` | List page → **Lead List Clean** |
+| ✉️ Verify Account Emails (per account, admin only) | `✉️ Verify Account Emails` | List page → **Verify with this account** (admins only) |
+| 🔄 Check Pending Results / 🗑️ Clear Pending Tasks | same | Overview / List page |
+| 🧹 Clean Decision Makers (keywords, seniority, industry, departments, country) | `🧹 Clean Decision Makers` | **Clean Decision Makers** page |
+| 🤖 Company Names Cleaner (OpenAI GPT, batches of 100) | `🔄 Start Cleaning Company Names` | **Company Name Cleaner** page |
+| 📊 info tab (activity log / misuse monitoring) | `info` sheet | **Activity Log** page |
+| 🔃 Refresh & Show All Credits | same | **Credits** page + header pill |
+| 📖 Guideline / Help | same | **Guideline / Help** page |
 
-## 🚀 Features
+Instead of sheet tabs, users **upload CSV / XLSX files** ("lists"), run the tools, and
+**download** the result as CSV or XLSX.
 
-### ⚡ Bulk Lead List Clean
-- Splits unverified emails across **7 Reoon API accounts** in parallel for maximum speed
-- Uses **Daily Credits only** to protect paid instant credits
-- Fully **non-blocking** — submits tasks and hands off to background triggers (no timeout errors)
-- Results written automatically every 1 minute via time-based triggers
-- **Auto Recovery** — if task metadata is lost, scans the `info` tab to resume verification
-
-### ✉️ Verify Account Emails
-- Per-account individual tab verification
-- Submits task and returns immediately — results appear in 1–5 minutes via trigger
-- Access restricted to authorized admin only
-
-### 🧹 Clean Decision Makers
-- Filters rows to keep top decision makers per company
-- Supports filtering by **Title Keywords, Seniority, Department, Industry, Country**
-- Prioritizes verified emails (Safe → Role Account → Catch All)
-- Outputs to a new `Cleaned — [Sheet Name]` tab
-
-### 🤖 Company Names Cleaner (GPT-Powered)
-- Uses **OpenAI GPT API** to strip legal suffixes, locations, and generic business terms
-- Processes in batches of **100 rows** with auto-rescheduled triggers — no 6-minute timeout
-- Skips already-cleaned rows to prevent overwrites
-- Outputs to a new tab named `[user@email], the company name cleaning`
-
-### 📊 Info Tab — Activity Log (Misuse Monitoring)
-Tracks **every automation run** by every user with 11 columns:
-
-| Column | Description |
-|---|---|
-| User Email | Who triggered the automation |
-| Function | Which tool was used |
-| Sheet | Which tab/sheet was processed |
-| Task ID | Reoon API task ID |
-| API Account | Which Reoon account handled it |
-| Date | Timestamp of the run |
-| Task Name | Descriptive name |
-| Status | submitted / completed / started |
-| Total | Number of emails/rows processed |
-| Progress | Completion percentage |
-| Action | polling / done |
+> The original Google Apps Script code is kept **unchanged** in `google-apps-script/`
+> (that folder is in `.gitignore`, so it is never committed).
 
 ---
 
-## 📁 File Structure
+## 👥 Roles
 
-| File | Purpose |
-|---|---|
-| `Code.gs` | Core: `verifyEmails`, credit management, menu builder, info sheet logging |
-| `LeadListCleaner.gs` | Bulk lead list cleaning, aggressive polling, background trigger handler |
-| `CompanyNameCleaner.gs` | GPT-powered company name cleaning in batches |
-| `decision_maker.html` | Dialog UI for Decision Maker Filter |
-| `GuidelineDialog.html` | In-sheet help & guideline dialog |
-
----
-
-## ⚙️ Setup
-
-1. Open your Google Sheet → **Extensions → Apps Script**
-2. Copy each `.gs` file into a separate Apps Script file
-3. Copy `.html` files into HTML files in the editor
-4. Go to **Project Settings → Script Properties** and add:
-   - `API_KEY_emailastrallc`
-   - `API_KEY_emranhossain`
-   - `API_KEY_alimranshourov`
-   - `API_KEY_aminsohel`
-   - `API_KEY_amin`
-   - `API_KEY_support`
-   - `API_KEY_tool`
-   - `CHATGPT_API_KEY` (for Company Name Cleaner)
-5. Reload the spreadsheet — the **📧 Email Verifier** menu will appear
+| | **Admin** | **User** |
+|---|---|---|
+| Upload own lists, run Lead List Clean / Decision Makers / Company Cleaner | ✅ | ✅ |
+| Download results (CSV / XLSX) | ✅ | ✅ |
+| See credit totals per account | ✅ | ✅ |
+| See activity log | all users | own only |
+| See lists | all users' lists | own only |
+| ✉️ Verify Account Emails (per-account, uses instant credits too) | ✅ | 🔒 locked |
+| Manage users (create / role / reset password / deactivate / delete) | ✅ | ❌ |
+| Manage Reoon API keys + OpenAI key/model | ✅ | ❌ |
+| Clear *all* pending tasks | all | own only |
 
 ---
 
-## 🔒 Access Control
+## 🚀 Setup (5 minutes)
 
-- **Verify Account Emails** submenu is locked for all users except the designated admin
-- All activities are logged to the `info` tab for misuse monitoring
+Requirements: **Node.js 18+** (tested on Node 22).
+
+```bash
+# 1. install dependencies
+npm install
+
+# 2. create your config
+cp .env.example .env
+#    edit .env → set SESSION_SECRET, ADMIN_EMAIL, ADMIN_PASSWORD,
+#    and (optionally) API_KEY_<account> keys + CHATGPT_API_KEY
+
+# 3. start
+npm start
+#    → http://localhost:3000
+```
+
+Log in with `ADMIN_EMAIL` / `ADMIN_PASSWORD`. The first admin is created automatically on
+first start (only when the database is empty). To create/promote an admin later:
+
+```bash
+npm run create-admin -- admin@example.com StrongPassword "Admin Name"
+```
+
+### API keys
+
+* **Reoon accounts** — either put them in `.env` as `API_KEY_<name>=...` (same names as the
+  sheet tabs: `emailastrallc`, `emranhossain`, `alimranshourov`, `aminsohel`, `amin`,
+  `support`, `tool`) before the first start, **or** add/edit them any time in
+  **Admin → API Keys & Settings**. Accounts can be enabled/disabled individually.
+* **OpenAI** — `CHATGPT_API_KEY` in `.env` or **Admin → API Keys & Settings**. The model
+  defaults to `gpt-4o-mini` (the sheet version used `gpt-3.5-turbo`; change it in Settings).
+
+All data (users, keys, lists, activity) lives in `data/dashboard.sqlite`. Back up the
+`data/` folder to keep everything.
 
 ---
 
-## 🛡️ Timeout Protection
+## 📁 Project structure
 
-All functions are protected against Google Apps Script's 6-minute execution limit:
-- `verifyEmails` — non-blocking, uses background triggers
-- `cleanLeadList` — 100-second in-script poll deadline, then trigger fallback
-- `cleanCompanyNames` — 4-minute per-run limit, auto-reschedules
-- `checkPendingTaskResults` — 5.5-minute deadline guard
+```
+server/
+  index.js                 Express app, static files, error handler
+  config.js                .env → config
+  db.js                    SQLite schema + first-admin / API-key seeding
+  auth.js                  cookie sessions, login rate-limit, requireAuth / requireAdmin
+  routes/
+    auth.js                login / logout / me / change password
+    users.js               (admin) user management
+    settings.js            (admin) Reoon accounts, OpenAI key & model
+    lists.js               upload, view, download, rename, delete, clear "Pending..." rows
+    verify.js              credits, Lead List Clean, Verify Account (admin), pending tasks
+    tools.js               Decision Makers, Company Cleaner, Activity log
+  services/
+    reoon.js               Reoon API client + credit cache        (Code.gs: getCreditBalance…)
+    leadListCleaner.js     Lead List Clean, Verify Emails, poller  (LeadListCleaner.gs + verifyEmails)
+    decisionMaker.js       filter logic                            (Code.gs: runDecisionMakerFilter…)
+    companyCleaner.js      GPT batch cleaning job                  (CompanyNameCleaner.gs)
+    activityLog.js         the "info" tab                          (Code.gs: logTaskToInfoSheet…)
+    lists.js               list/row storage, column helpers
+    fileParser.js          CSV / XLSX import & export
+    workers.js             background intervals (= time-based triggers)
+  scripts/createAdmin.js
+public/
+  index.html, app.js, styles.css, dm-data.js (filter data from decision_maker.html)
+google-apps-script/        original Sheets code — untouched, git-ignored
+data/                      SQLite database (created on first run, git-ignored)
+```
+
+---
+
+## 🛠 How the sheet behaviours were mapped
+
+* **Sheet tab → List.** `Verification Status` and `Verification Date` columns are inserted
+  right after `Email` when missing, exactly like the sheet code.
+* **Time-based triggers → background intervals.** Pending Reoon tasks are polled every
+  `POLL_INTERVAL_SECONDS` (default 60 s) plus a fast 10-second poll for ~100 s right after
+  submission (like the in-script aggressive poll). Company cleaning runs as a background job
+  in batches of 100 rows and resumes automatically after a server restart.
+* **PropertiesService / CacheService → SQLite tables** (`pending_tasks`, `credit_cache`,
+  `settings`, `clean_jobs`).
+* **`"Pending..."` rows** are still the marker used to write results back. Orphaned
+  `Pending...` rows (no active task) can be cleared from the list page.
+* **Info sheet → `activity` table** with the same 11 columns.
+* **Admin lock** (`ezabulb@gmail.com` hard-coded in the sheet) → the `admin` role.
+
+---
+
+## 🔒 Security notes
+
+* Passwords are bcrypt-hashed; sessions are signed, `httpOnly`, `SameSite=Lax` cookies.
+* Login is rate-limited (10 attempts / 15 min per IP + email).
+* API keys are stored in the local SQLite database and only ever shown masked.
+* Run behind HTTPS (e.g. nginx / Caddy reverse proxy) if exposed to the internet, and set a
+  strong `SESSION_SECRET`.
 
 ---
 

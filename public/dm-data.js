@@ -1,0 +1,113 @@
+// Filter data for the Decision Maker tool — copied verbatim from google-apps-script/decision_maker.html
+var SUGGESTIONS = [
+  'Chief','President','VP','Vice President','SVP','Head','Director',
+  'Founder','Co-Founder','Owner','Co-Owner','CEO','Executive Director (ED)',
+  'COO','CFO','CDO','CPO','CSO','CMO','CIO',
+  'Chief Advocacy Officer (CAO)','Chief Impact Officer (CIO)',
+  'Chairperson of the Board','Vice Chairperson','Treasurer',
+  'Secretary','Board Member','Program Director','Program Manager'
+];
+
+var DATA = {
+  seniority: [
+    'Owner','Founder','C-Suite','Partner','VP','Head',
+    'Director','Manager','Senior','Mid-Level','Entry Level','Intern'
+  ],
+  industry: [
+    'Accounting','Agriculture','Airlines/Aviation','Alternative Dispute Resolution',
+    'Alternative Medicine','Animation','Apparel & Fashion','Architecture & Planning',
+    'Arts & Crafts','Automotive','Aviation & Aerospace','Banking','Biotechnology',
+    'Broadcast Media','Building Materials','Business Supplies & Equipment',
+    'Capital Markets','Chemicals','Civic & Social Organization','Civil Engineering',
+    'Commercial Real Estate','Computer & Network Security','Computer Games',
+    'Computer Hardware','Computer Networking','Computer Software','Construction',
+    'Consumer Electronics','Consumer Goods','Consumer Services','Cosmetics','Dairy',
+    'Defense & Space','Design','E-Learning','Education Management',
+    'Electrical/Electronic Manufacturing','Entertainment','Environmental Services',
+    'Events Services','Executive Office','Facilities Services','Farming',
+    'Financial Services','Fine Art','Fishery','Food & Beverages','Food Production',
+    'Fund-Raising','Furniture','Gambling & Casinos','Glass',
+    'Government Administration','Government Relations','Graphic Design','Health',
+    'Higher Education','Hospital & Health Care','Hospitality','Human Resources',
+    'Import & Export','Individual & Family Services','Industrial Automation',
+    'Information Services','Information Technology & Services','Insurance',
+    'International Affairs','International Trade & Development','Internet',
+    'Investment Banking','Investment Management','Judiciary','Law Enforcement',
+    'Law Practice','Legal Services','Legislative Office','Leisure','Libraries',
+    'Logistics & Supply Chain','Luxury Goods & Jewelry','Machinery',
+    'Management Consulting','Maritime','Market Research','Marketing & Advertising',
+    'Mechanical or Industrial Engineering','Media Production','Medical Devices',
+    'Medical Practice','Mental Health Care','Military','Mining & Metals',
+    'Motion Pictures & Film','Museums & Institutions','Music','Nanotechnology',
+    'Newspapers','Nonprofit Organization Management','Oil & Energy','Online Media',
+    'Outsourcing/Offshoring','Package/Freight Delivery','Packaging & Containers',
+    'Paper & Forest Products','Performing Arts','Pharmaceuticals','Philanthropy',
+    'Photography','Plastics','Political Organization','Primary/Secondary Education',
+    'Printing','Professional Training & Coaching','Program Development',
+    'Public Policy','Public Relations & Communications','Public Safety','Publishing',
+    'Railroad Manufacture','Ranching','Real Estate',
+    'Recreational Facilities & Services','Religious Institutions',
+    'Renewables & Environment','Research','Restaurants','Retail',
+    'Security & Investigations','Semiconductors','Shipbuilding','Sporting Goods',
+    'Sports','Staffing & Recruiting','Supermarkets','Telecommunications','Textiles',
+    'Think Tanks','Tobacco','Translation & Localization',
+    'Transportation/Trucking/Railroad','Utilities',
+    'Venture Capital & Private Equity','Veterinary','Warehousing','Wholesale',
+    'Wine & Spirits','Wireless','Writing & Editing'
+  ],
+  departments: [],  // unused — DEPT_TREE below handles departments
+  country: [
+    'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda',
+    'Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain',
+    'Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan',
+    'Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria',
+    'Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon','Canada',
+    'Central African Republic','Chad','Chile','China','Colombia','Comoros',
+    'Congo (Congo-Brazzaville)','Costa Rica',"Côte d'Ivoire",'Croatia','Cuba',
+    'Cyprus','Czechia (Czech Republic)','Democratic Republic of the Congo',
+    'Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt',
+    'El Salvador','Equatorial Guinea','Eritrea','Estonia',
+    "Eswatini (fmr. \"Swaziland\")", 'Ethiopia','Fiji','Finland','France',
+    'Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala',
+    'Guinea','Guinea-Bissau','Guyana','Haiti','Holy See','Honduras','Hungary',
+    'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
+    'Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kuwait',
+    'Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya',
+    'Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia',
+    'Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius',
+    'Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco',
+    'Mozambique','Myanmar (formerly Burma)','Namibia','Nauru','Nepal',
+    'Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea',
+    'North Macedonia','Norway','Oman','Pakistan','Palau','Palestine State',
+    'Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland',
+    'Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis',
+    'Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino',
+    'Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles',
+    'Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia',
+    'South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan',
+    'Suriname','Sweden','Switzerland','Syria','Tajikistan','Tanzania','Thailand',
+    'Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey',
+    'Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates',
+    'United Kingdom','United States of America','Uruguay','Uzbekistan','Vanuatu',
+    'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'
+  ]
+};
+
+var DEPT_TREE = [
+  { d:'C Suite', s:['Executive','Finance Executive','Founder','Human Resources Executive','Information Technology Executive','Legal Executive','Marketing Executive','Medical Health Executive','Operations Executive','Sales Leader'] },
+  { d:'Product', s:['Product Development','Product Management'] },
+  { d:'Engineering Technical', s:['Artificial Intelligence Machine Learning','Bioengineering','Biometrics','Business Intelligence','Chemical Engineering','Cloud Mobility','Data Science','Dev Ops','Digital Transformation','Emerging Technology Innovation','Engineering Technical','Industrial Engineering','Mechanic','Mobile Development','Project Management','Research Development','Scrum Master Agile Coach','Software Development','Support Technical Services','Technician','Technology Operations','Test Quality Assurance','UI UX','Web Development'] },
+  { d:'Design', s:['All Design','Product Or UI UX Design','Graphic Visual Brand Design'] },
+  { d:'Education', s:['Teacher','Principal','Superintendent','Professor'] },
+  { d:'Finance', s:['Accounting','Finance','Financial Planning Analysis','Financial Reporting','Financial Strategy','Financial Systems','Internal Audit Control','Investor Relations','Mergers Acquisitions','Real Estate Finance','Financial Risk','Shared Services','Sourcing Procurement','Tax','Treasury'] },
+  { d:'Human Resources', s:['Compensation Benefits','Culture Diversity Inclusion','Employee Labor Relations','Health Safety','Human Resource Information System','Human Resources','HR Business Partner','Learning Development','Organizational Development','Recruiting Talent Acquisition','Talent Management','Workforce Management','People Operations'] },
+  { d:'Information Technology', s:['Application Development','Business Service Management ITSM','Collaboration Web App','Data Center','Data Warehouse','Database Administration','E Commerce Development','Enterprise Architecture','Help Desk Desktop Services','HR Financial ERP Systems','Information Security','Information Technology','Infrastructure','IT Asset Management','IT Audit IT Compliance','IT Operations','IT Procurement','IT Strategy','IT Training','Networking','Project Program Management','Quality Assurance','Retail Store Systems','Servers','Storage Disaster Recovery','Telecommunications','Virtualization'] },
+  { d:'Legal', s:['Acquisitions','Compliance','Contracts','Corporate Secretary','E Discovery','Ethics','Governance','Governmental Affairs Regulatory Law','Intellectual Property Patent','Labor Employment','Lawyer Attorney','Legal','Legal Counsel','Legal Operations','Litigation','Privacy'] },
+  { d:'Marketing', s:['Advertising','Brand Management','Content Marketing','Customer Experience','Customer Marketing','Demand Generation','Digital Marketing','E Commerce Marketing','Event Marketing','Field Marketing','Lead Generation','Marketing','Marketing Analytics Insights','Marketing Communications','Marketing Operations','Product Marketing','Public Relations','Search Engine Optimization Pay Per Click','Social Media Marketing','Strategic Communications','Technical Marketing'] },
+  { d:'Medical Health', s:['Anesthesiology','Chiropractics','Clinical Systems','Dentistry','Dermatology','Doctors Physicians','Epidemiology','First Responder','Infectious Disease','Medical Administration','Medical Education Training','Medical Research','Medicine','Neurology','Nursing','Nutrition Dietetics','Obstetrics Gynecology','Oncology','Opthalmology','Optometry','Orthopedics','Pathology','Pediatrics','Pharmacy','Physical Therapy','Psychiatry','Psychology','Public Health','Radiology','Social Work'] },
+  { d:'Operations', s:['Call Center','Construction','Corporate Strategy','Customer Service Support','Enterprise Resource Planning','Facilities Management','Leasing','Logistics','Office Operations','Operations','Physical Security','Project Development','Quality Management','Real Estate','Safety','Store Operations','Supply Chain'] },
+  { d:'Sales', s:['Account Management','Business Development','Channel Sales','Customer Retention Development','Customer Success','Field Outside Sales','Inside Sales','Partnerships','Revenue Operations','Sales','Sales Enablement','Sales Engineering','Sales Operations','Sales Training'] },
+  { d:'Consulting', s:['Consultant'] }
+];
+var SUB_TO_DEPT = {};
+DEPT_TREE.forEach(function(g){ g.s.forEach(function(sub){ SUB_TO_DEPT[sub] = g.d; }); });
