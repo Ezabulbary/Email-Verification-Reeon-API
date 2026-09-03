@@ -117,10 +117,10 @@ function runFilter(user, listId, filters) {
     throw new Error('Required columns (Title/Job Title, Company/Company Name) not found.');
   }
   if (filters && filters.industry && filters.industry.length && cols.industryCol === -1) {
-    throw new Error('An Industry filter was selected, but no "Industry" or "Sector" column was found in the list.');
+    throw new Error('An Industry filter was selected, but no "Industry" or "Sector" column was found in the sheet.');
   }
   if (filters && filters.country && filters.country.length && cols.countryCol === -1) {
-    throw new Error('A Country filter was selected, but no "Country" or "Location" column was found in the list.');
+    throw new Error('A Country filter was selected, but no "Country" or "Location" column was found in the sheet.');
   }
   const f = normalizeFilters(filters);
   const hasStatus = cols.statusCol !== -1;
@@ -171,7 +171,7 @@ function runFilter(user, listId, filters) {
     `📂 Scanned    : ${totalScanned} row(s)`,
     `✅ Matched    : ${totalMatched} decision maker(s)`,
     `📊 Final Kept : ${totalKept} row(s) (max ${f.perCompany} per company)`,
-    `🗂  Output List: "${cleanedName}"`,
+    `🗂  Output Tab : "${cleanedName}"`,
     `📢 Status Col : ${hasStatus ? 'Active (' + list.columns[cols.statusCol] + ')' : 'Not Found (Skipped)'}`
   ].join('\n');
 

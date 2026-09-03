@@ -23,10 +23,12 @@ app.use('/api/settings', require('./routes/settings'));
 app.use('/api/lists', require('./routes/lists'));
 app.use('/api/verify', require('./routes/verify'));
 app.use('/api', require('./routes/tools'));
+app.use(require('./routes/gas'));
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
 // ── Static frontend ──
+app.use('/dialogs', (req, res) => res.status(404).end());
 app.use(express.static(path.join(__dirname, '..', 'public'), { index: 'index.html' }));
 app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'index.html')));
 

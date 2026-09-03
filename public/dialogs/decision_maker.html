@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<base target="_top">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'Segoe UI',Arial,sans-serif;background:#0f1117;color:#e2e8f0;font-size:13px;display:flex;flex-direction:column;height:100vh;overflow:hidden;margin:0;padding:0;}
+
+/* ── Section card ── */
+.card{background:#161d2e;border:1px solid #252f44;border-radius:10px;margin-bottom:12px;overflow:hidden;}
+.card-header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;cursor:pointer;user-select:none;transition:background .15s;}
+.card-header:hover{background:#1c2540;}
+.card-title{font-size:11px;font-weight:700;color:#7dd3fc;text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;gap:7px;}
+.badge{background:#6366f1;color:#fff;border-radius:10px;font-size:10px;padding:1px 7px;font-weight:700;letter-spacing:0;}
+.chevron{color:#475569;transition:transform .2s;flex-shrink:0;}
+.card.open .chevron{transform:rotate(180deg);}
+.card-body{display:none;padding:0 14px 12px;}
+.card.open .card-body{display:block;}
+
+/* ── Keywords field ── */
+.kw-box{display:flex;flex-wrap:wrap;gap:5px;padding:8px;background:#0f1117;border:1px solid #252f44;border-radius:7px;min-height:52px;cursor:text;margin-bottom:8px;}
+.kw-tag{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;border:1px solid #2563eb;color:#93c5fd;border-radius:20px;padding:2px 8px;font-size:11px;}
+.kw-tag .x{cursor:pointer;color:#60a5fa;font-size:12px;line-height:1;}
+.kw-tag .x:hover{color:#f87171;}
+.kw-input{flex:1;min-width:120px;background:none;border:none;outline:none;color:#e2e8f0;font-size:12px;}
+.kw-input::placeholder{color:#334155;}
+
+/* ── Suggestion chips ── */
+.suggest-label{font-size:10px;color:#64748b;margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px;}
+.suggest-wrap{display:flex;flex-wrap:wrap;gap:5px;}
+.chip{display:inline-block;background:#1a2436;border:1px solid #2a3a54;color:#94a3b8;border-radius:20px;padding:3px 10px;font-size:11px;cursor:pointer;transition:all .15s;}
+.chip:hover{background:#1e3a5f;border-color:#2563eb;color:#93c5fd;}
+.chip.used{opacity:.35;cursor:default;}
+.chip.highlight{background:#064e3b;border-color:#10b981;color:#6ee7b7;box-shadow:0 0 5px rgba(16,185,129,0.3);transform:scale(1.04);}
+
+/* ── Search input ── */
+.search-box{width:100%;background:#0f1117;border:1px solid #252f44;border-radius:7px;padding:6px 10px 6px 28px;color:#e2e8f0;font-size:12px;outline:none;margin-bottom:8px;}
+.search-box:focus{border-color:#6366f1;}
+.search-box::placeholder{color:#334155;}
+.search-wrap{position:relative;}
+.search-wrap svg{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:#475569;pointer-events:none;}
+
+/* ── Custom add row ── */
+.add-row{display:flex;gap:6px;margin-bottom:8px;}
+.add-row input{flex:1;background:#0f1117;border:1px solid #252f44;border-radius:7px;padding:6px 10px;color:#e2e8f0;font-size:12px;outline:none;}
+.add-row input:focus{border-color:#6366f1;}
+.add-row input::placeholder{color:#334155;}
+.btn-add{background:#6366f1;color:#fff;border:none;border-radius:7px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;}
+.btn-add:hover{background:#4f46e5;}
+
+/* ── Option list ── */
+.opt-list{display:flex;flex-direction:column;gap:1px;max-height:200px;overflow-y:auto;}
+.opt-list::-webkit-scrollbar{width:4px;}
+.opt-list::-webkit-scrollbar-thumb{background:#252f44;border-radius:4px;}
+.opt{display:flex;align-items:center;gap:9px;padding:6px 7px;border-radius:7px;cursor:pointer;transition:background .12s;}
+.opt:hover{background:#1c2540;}
+.opt.on{background:#1e3a5f;}
+.cb{width:15px;height:15px;flex-shrink:0;border:1.5px solid #374151;border-radius:4px;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.opt.on .cb{background:#6366f1;border-color:#6366f1;}
+.cb svg{display:none;}
+.opt.on .cb svg{display:block;}
+.opt-lbl{flex:1;color:#94a3b8;font-size:12.5px;}
+.opt.on .opt-lbl{color:#e2e8f0;font-weight:500;}
+.no-res{color:#475569;font-size:12px;text-align:center;padding:10px;display:none;}
+
+/* ── Dept hierarchy ── */
+.dept-list{max-height:240px;overflow-y:auto;}
+.dept-list::-webkit-scrollbar{width:4px;}
+.dept-list::-webkit-scrollbar-thumb{background:#252f44;border-radius:4px;}
+.dg{margin-bottom:1px;}
+.dp{display:flex;align-items:center;gap:7px;padding:6px 7px;border-radius:7px;cursor:pointer;transition:background .12s;}
+.dp:hover{background:#1c2540;}
+.dp.has-sel{background:#1a2a40;}
+.dp-arrow{width:14px;height:14px;flex-shrink:0;color:#475569;transition:transform .18s;}
+.dg.open .dp-arrow{transform:rotate(90deg);}
+.dp-cb{width:15px;height:15px;flex-shrink:0;border:1.5px solid #374151;border-radius:4px;display:flex;align-items:center;justify-content:center;position:relative;transition:all .15s;}
+.dp.has-sel .dp-cb{border-color:#6366f1;}
+.dp.all-sel .dp-cb{background:#6366f1;border-color:#6366f1;}
+.dp-cb svg{display:none;}
+.dp.all-sel .dp-cb svg{display:block;}
+.dp-cb.partial::after{content:'';position:absolute;width:7px;height:2px;background:#6366f1;border-radius:1px;}
+.dp-name{flex:1;color:#94a3b8;font-size:12.5px;}
+.dp.has-sel .dp-name{color:#e2e8f0;font-weight:500;}
+.dp-cnt{font-size:10px;color:#6366f1;font-weight:700;background:#1e2a45;border-radius:10px;padding:1px 6px;display:none;}
+.dp.has-sel .dp-cnt{display:inline-block;}
+.dc{display:none;padding:4px 0 4px 14px;border-left:2px solid #1e2a40;margin-left:19px;}
+.dg.open .dc{display:block;}
+
+/* ── Per company ── */
+.pc-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.pc-row label{font-size:12px;color:#94a3b8;}
+.pc-row input[type=number]{width:72px;background:#0f1117;border:1px solid #252f44;border-radius:7px;padding:6px 10px;color:#e2e8f0;font-size:14px;font-weight:700;text-align:center;outline:none;}
+.pc-row input[type=number]:focus{border-color:#6366f1;}
+.pc-row .hint{font-size:11px;color:#475569;}
+
+/* ── Active tags bar ── */
+#tagsBar{display:flex;flex-wrap:wrap;gap:5px;padding:8px 14px;background:#0d1018;border-bottom:1px solid #252f44;min-height:38px;align-items:center;}
+.empty-hint{color:#334155;font-size:11px;font-style:italic;}
+.atag{display:inline-flex;align-items:center;gap:4px;background:#1e3a5f;border:1px solid #2563eb;color:#93c5fd;border-radius:20px;padding:2px 9px;font-size:11px;}
+.atag .x{cursor:pointer;color:#60a5fa;font-size:12px;}
+.atag .x:hover{color:#f87171;}
+.lead-count{display:none;} /* hidden — replaced by #topCount */
+
+/* ── Top count strip ── */
+#topCount{flex-shrink:0;display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:5px 16px;background:#0d1018;border-bottom:1px solid #1e2a40;}
+#topCount .tc-num{font-size:13px;font-weight:800;color:#7dd3fc;}
+#topCount .tc-num.loading{color:#334155;animation:pulse 1s ease-in-out infinite;}
+#topCount .tc-lbl{font-size:12px;color:#475569;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+
+/* ── Scroll area (cards only) ── */
+#scrollArea{flex:1;overflow-y:auto;padding:12px 16px;}
+#scrollArea::-webkit-scrollbar{width:5px;}
+#scrollArea::-webkit-scrollbar-thumb{background:#252f44;border-radius:4px;}
+
+/* ── Footer ── */
+.footer{display:flex;gap:8px;justify-content:flex-end;padding:12px 14px;border-top:1px solid #252f44;background:#0d1018;}
+.btn-clear{background:none;border:1px solid #252f44;color:#64748b;border-radius:7px;padding:7px 16px;font-size:12px;cursor:pointer;transition:all .2s;}
+.btn-clear:hover{border-color:#f87171;color:#f87171;}
+.btn-apply{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:7px;padding:7px 20px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;transition:opacity .2s;}
+.btn-apply:hover{opacity:.88;}
+.spinner{display:none;width:13px;height:13px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+::-webkit-scrollbar{width:5px;}
+::-webkit-scrollbar-thumb{background:#252f44;border-radius:4px;}
+</style>
+</head>
+<body>
+
+<!-- Top count strip (always visible, never scrolls) -->
+<div id="topCount">
+  <span class="tc-num loading" id="tcNum">⏳</span>
+  <span class="tc-lbl" id="tcSub">matching leads</span>
+</div>
+
+<!-- Active selection bar (always visible) -->
+<div id="tagsBar"><span class="empty-hint" id="emptyHint">No filters selected yet…</span><span id="leadCount"></span></div>
+
+<!-- Scrollable cards area -->
+<div id="scrollArea">
+
+<!-- ═══ 1. TITLE ═════════════════════════════════════════════════════════ -->
+<div class="card open" id="sec-kw">
+  <div class="card-header" onclick="toggle('sec-kw')">
+    <span class="card-title">Title <span class="badge" id="badge-kw" style="display:none"></span></span>
+    <svg class="chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="card-body">
+    <!-- Title tag box -->
+    <div class="kw-box" id="kwBox" onclick="document.getElementById('kwInput').focus()">
+      <input class="kw-input" id="kwInput" placeholder="Type a title and press Enter…">
+    </div>
+    <!-- Suggestion chips -->
+    <div class="suggest-label">Click to add suggestion</div>
+    <div class="suggest-wrap" id="suggestWrap"></div>
+  </div>
+</div>
+
+<!-- ═══ 2. SENIORITY ════════════════════════════════════════════════════════ -->
+<div class="card open" id="sec-seniority">
+  <div class="card-header" onclick="toggle('sec-seniority')">
+    <span class="card-title">Seniority Level <span class="badge" id="badge-seniority" style="display:none"></span></span>
+    <svg class="chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="card-body">
+    <div class="opt-list" id="list-seniority"></div>
+  </div>
+</div>
+
+<!-- ═══ 3. INDUSTRY ═════════════════════════════════════════════════════════ -->
+<div class="card" id="sec-industry">
+  <div class="card-header" onclick="toggle('sec-industry')">
+    <span class="card-title">Industry <span class="badge" id="badge-industry" style="display:none"></span></span>
+    <svg class="chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="card-body">
+    <div class="add-row">
+      <input id="input-industry" placeholder="Type an industry and press Add…" onkeydown="if(event.key==='Enter')addCustom('industry')">
+      <button class="btn-add" onclick="addCustom('industry')">+ Add</button>
+    </div>
+    <div class="search-wrap">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input class="search-box" placeholder="Search industries…" oninput="filterList('industry',this.value)">
+    </div>
+    <div class="opt-list" id="list-industry"></div>
+    <div class="no-res" id="nr-industry">No results</div>
+  </div>
+</div>
+
+<!-- ═══ 4. DEPARTMENTS ══════════════════════════════════════════════════════ -->
+<div class="card" id="sec-departments">
+  <div class="card-header" onclick="toggle('sec-departments')">
+    <span class="card-title">Departments <span class="badge" id="badge-departments" style="display:none"></span></span>
+    <svg class="chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="card-body">
+    <div class="search-wrap">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input class="search-box" placeholder="Search departments or sub-departments…" oninput="filterList('departments',this.value)">
+    </div>
+    <div class="dept-list">
+      <div id="dept-container"></div>
+    </div>
+    <div class="no-res" id="nr-departments">No results</div>
+  </div>
+</div>
+
+<!-- ═══ 5. COUNTRY ══════════════════════════════════════════════════════════ -->
+<div class="card" id="sec-country">
+  <div class="card-header" onclick="toggle('sec-country')">
+    <span class="card-title">Country <span class="badge" id="badge-country" style="display:none"></span></span>
+    <svg class="chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="card-body">
+    <div class="add-row">
+      <input id="input-country" placeholder="Type a country and press Add…" onkeydown="if(event.key==='Enter')addCustom('country')">
+      <button class="btn-add" onclick="addCustom('country')">+ Add</button>
+    </div>
+    <div class="search-wrap">
+      <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input class="search-box" placeholder="Search countries…" oninput="filterList('country',this.value)">
+    </div>
+    <div class="opt-list" id="list-country"></div>
+    <div class="no-res" id="nr-country">No results</div>
+  </div>
+</div>
+
+<!-- ═══ 6. MAX PER COMPANY ══════════════════════════════════════════════════ -->
+<div class="card open" id="sec-perco">
+  <div class="card-header" onclick="toggle('sec-perco')">
+    <span class="card-title">Max People Per Company</span>
+    <svg class="chevron" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7"/></svg>
+  </div>
+  <div class="card-body">
+    <div class="pc-row">
+      <label>Max per company:</label>
+      <input type="number" id="perCompany" value="1" min="1" max="999">
+      <span class="hint">decision makers will be kept</span>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#scrollArea -->
+
+<!-- Footer (always visible, never scrolls) -->
+<div class="footer">
+  <button class="btn-clear" onclick="clearAll()">Clear All</button>
+  <button class="btn-apply" id="runBtn" onclick="applyFilters()">
+    <div class="spinner" id="spinner"></div>
+    Apply Filters
+  </button>
+</div>
+
+<script>
+// ── Data ─────────────────────────────────────────────────────────────────────
+
+var SUGGESTIONS = [
+  'Chief','President','VP','Vice President','SVP','Head','Director',
+  'Founder','Co-Founder','Owner','Co-Owner','CEO','Executive Director (ED)',
+  'COO','CFO','CDO','CPO','CSO','CMO','CIO',
+  'Chief Advocacy Officer (CAO)','Chief Impact Officer (CIO)',
+  'Chairperson of the Board','Vice Chairperson','Treasurer',
+  'Secretary','Board Member','Program Director','Program Manager'
+];
+
+var DATA = {
+  seniority: [
+    'Owner','Founder','C-Suite','Partner','VP','Head',
+    'Director','Manager','Senior','Mid-Level','Entry Level','Intern'
+  ],
+  industry: [
+    'Accounting','Agriculture','Airlines/Aviation','Alternative Dispute Resolution',
+    'Alternative Medicine','Animation','Apparel & Fashion','Architecture & Planning',
+    'Arts & Crafts','Automotive','Aviation & Aerospace','Banking','Biotechnology',
+    'Broadcast Media','Building Materials','Business Supplies & Equipment',
+    'Capital Markets','Chemicals','Civic & Social Organization','Civil Engineering',
+    'Commercial Real Estate','Computer & Network Security','Computer Games',
+    'Computer Hardware','Computer Networking','Computer Software','Construction',
+    'Consumer Electronics','Consumer Goods','Consumer Services','Cosmetics','Dairy',
+    'Defense & Space','Design','E-Learning','Education Management',
+    'Electrical/Electronic Manufacturing','Entertainment','Environmental Services',
+    'Events Services','Executive Office','Facilities Services','Farming',
+    'Financial Services','Fine Art','Fishery','Food & Beverages','Food Production',
+    'Fund-Raising','Furniture','Gambling & Casinos','Glass',
+    'Government Administration','Government Relations','Graphic Design','Health',
+    'Higher Education','Hospital & Health Care','Hospitality','Human Resources',
+    'Import & Export','Individual & Family Services','Industrial Automation',
+    'Information Services','Information Technology & Services','Insurance',
+    'International Affairs','International Trade & Development','Internet',
+    'Investment Banking','Investment Management','Judiciary','Law Enforcement',
+    'Law Practice','Legal Services','Legislative Office','Leisure','Libraries',
+    'Logistics & Supply Chain','Luxury Goods & Jewelry','Machinery',
+    'Management Consulting','Maritime','Market Research','Marketing & Advertising',
+    'Mechanical or Industrial Engineering','Media Production','Medical Devices',
+    'Medical Practice','Mental Health Care','Military','Mining & Metals',
+    'Motion Pictures & Film','Museums & Institutions','Music','Nanotechnology',
+    'Newspapers','Nonprofit Organization Management','Oil & Energy','Online Media',
+    'Outsourcing/Offshoring','Package/Freight Delivery','Packaging & Containers',
+    'Paper & Forest Products','Performing Arts','Pharmaceuticals','Philanthropy',
+    'Photography','Plastics','Political Organization','Primary/Secondary Education',
+    'Printing','Professional Training & Coaching','Program Development',
+    'Public Policy','Public Relations & Communications','Public Safety','Publishing',
+    'Railroad Manufacture','Ranching','Real Estate',
+    'Recreational Facilities & Services','Religious Institutions',
+    'Renewables & Environment','Research','Restaurants','Retail',
+    'Security & Investigations','Semiconductors','Shipbuilding','Sporting Goods',
+    'Sports','Staffing & Recruiting','Supermarkets','Telecommunications','Textiles',
+    'Think Tanks','Tobacco','Translation & Localization',
+    'Transportation/Trucking/Railroad','Utilities',
+    'Venture Capital & Private Equity','Veterinary','Warehousing','Wholesale',
+    'Wine & Spirits','Wireless','Writing & Editing'
+  ],
+  departments: [],  // unused — DEPT_TREE below handles departments
+  country: [
+    'Afghanistan','Albania','Algeria','Andorra','Angola','Antigua and Barbuda',
+    'Argentina','Armenia','Australia','Austria','Azerbaijan','Bahamas','Bahrain',
+    'Bangladesh','Barbados','Belarus','Belgium','Belize','Benin','Bhutan',
+    'Bolivia','Bosnia and Herzegovina','Botswana','Brazil','Brunei','Bulgaria',
+    'Burkina Faso','Burundi','Cabo Verde','Cambodia','Cameroon','Canada',
+    'Central African Republic','Chad','Chile','China','Colombia','Comoros',
+    'Congo (Congo-Brazzaville)','Costa Rica',"Côte d'Ivoire",'Croatia','Cuba',
+    'Cyprus','Czechia (Czech Republic)','Democratic Republic of the Congo',
+    'Denmark','Djibouti','Dominica','Dominican Republic','Ecuador','Egypt',
+    'El Salvador','Equatorial Guinea','Eritrea','Estonia',
+    "Eswatini (fmr. \"Swaziland\")", 'Ethiopia','Fiji','Finland','France',
+    'Gabon','Gambia','Georgia','Germany','Ghana','Greece','Grenada','Guatemala',
+    'Guinea','Guinea-Bissau','Guyana','Haiti','Holy See','Honduras','Hungary',
+    'Iceland','India','Indonesia','Iran','Iraq','Ireland','Israel','Italy',
+    'Jamaica','Japan','Jordan','Kazakhstan','Kenya','Kiribati','Kuwait',
+    'Kyrgyzstan','Laos','Latvia','Lebanon','Lesotho','Liberia','Libya',
+    'Liechtenstein','Lithuania','Luxembourg','Madagascar','Malawi','Malaysia',
+    'Maldives','Mali','Malta','Marshall Islands','Mauritania','Mauritius',
+    'Mexico','Micronesia','Moldova','Monaco','Mongolia','Montenegro','Morocco',
+    'Mozambique','Myanmar (formerly Burma)','Namibia','Nauru','Nepal',
+    'Netherlands','New Zealand','Nicaragua','Niger','Nigeria','North Korea',
+    'North Macedonia','Norway','Oman','Pakistan','Palau','Palestine State',
+    'Panama','Papua New Guinea','Paraguay','Peru','Philippines','Poland',
+    'Portugal','Qatar','Romania','Russia','Rwanda','Saint Kitts and Nevis',
+    'Saint Lucia','Saint Vincent and the Grenadines','Samoa','San Marino',
+    'Sao Tome and Principe','Saudi Arabia','Senegal','Serbia','Seychelles',
+    'Sierra Leone','Singapore','Slovakia','Slovenia','Solomon Islands','Somalia',
+    'South Africa','South Korea','South Sudan','Spain','Sri Lanka','Sudan',
+    'Suriname','Sweden','Switzerland','Syria','Tajikistan','Tanzania','Thailand',
+    'Timor-Leste','Togo','Tonga','Trinidad and Tobago','Tunisia','Turkey',
+    'Turkmenistan','Tuvalu','Uganda','Ukraine','United Arab Emirates',
+    'United Kingdom','United States of America','Uruguay','Uzbekistan','Vanuatu',
+    'Venezuela','Vietnam','Yemen','Zambia','Zimbabwe'
+  ]
+};
+
+var DEPT_TREE = [
+  { d:'C Suite', s:['Executive','Finance Executive','Founder','Human Resources Executive','Information Technology Executive','Legal Executive','Marketing Executive','Medical Health Executive','Operations Executive','Sales Leader'] },
+  { d:'Product', s:['Product Development','Product Management'] },
+  { d:'Engineering Technical', s:['Artificial Intelligence Machine Learning','Bioengineering','Biometrics','Business Intelligence','Chemical Engineering','Cloud Mobility','Data Science','Dev Ops','Digital Transformation','Emerging Technology Innovation','Engineering Technical','Industrial Engineering','Mechanic','Mobile Development','Project Management','Research Development','Scrum Master Agile Coach','Software Development','Support Technical Services','Technician','Technology Operations','Test Quality Assurance','UI UX','Web Development'] },
+  { d:'Design', s:['All Design','Product Or UI UX Design','Graphic Visual Brand Design'] },
+  { d:'Education', s:['Teacher','Principal','Superintendent','Professor'] },
+  { d:'Finance', s:['Accounting','Finance','Financial Planning Analysis','Financial Reporting','Financial Strategy','Financial Systems','Internal Audit Control','Investor Relations','Mergers Acquisitions','Real Estate Finance','Financial Risk','Shared Services','Sourcing Procurement','Tax','Treasury'] },
+  { d:'Human Resources', s:['Compensation Benefits','Culture Diversity Inclusion','Employee Labor Relations','Health Safety','Human Resource Information System','Human Resources','HR Business Partner','Learning Development','Organizational Development','Recruiting Talent Acquisition','Talent Management','Workforce Management','People Operations'] },
+  { d:'Information Technology', s:['Application Development','Business Service Management ITSM','Collaboration Web App','Data Center','Data Warehouse','Database Administration','E Commerce Development','Enterprise Architecture','Help Desk Desktop Services','HR Financial ERP Systems','Information Security','Information Technology','Infrastructure','IT Asset Management','IT Audit IT Compliance','IT Operations','IT Procurement','IT Strategy','IT Training','Networking','Project Program Management','Quality Assurance','Retail Store Systems','Servers','Storage Disaster Recovery','Telecommunications','Virtualization'] },
+  { d:'Legal', s:['Acquisitions','Compliance','Contracts','Corporate Secretary','E Discovery','Ethics','Governance','Governmental Affairs Regulatory Law','Intellectual Property Patent','Labor Employment','Lawyer Attorney','Legal','Legal Counsel','Legal Operations','Litigation','Privacy'] },
+  { d:'Marketing', s:['Advertising','Brand Management','Content Marketing','Customer Experience','Customer Marketing','Demand Generation','Digital Marketing','E Commerce Marketing','Event Marketing','Field Marketing','Lead Generation','Marketing','Marketing Analytics Insights','Marketing Communications','Marketing Operations','Product Marketing','Public Relations','Search Engine Optimization Pay Per Click','Social Media Marketing','Strategic Communications','Technical Marketing'] },
+  { d:'Medical Health', s:['Anesthesiology','Chiropractics','Clinical Systems','Dentistry','Dermatology','Doctors Physicians','Epidemiology','First Responder','Infectious Disease','Medical Administration','Medical Education Training','Medical Research','Medicine','Neurology','Nursing','Nutrition Dietetics','Obstetrics Gynecology','Oncology','Opthalmology','Optometry','Orthopedics','Pathology','Pediatrics','Pharmacy','Physical Therapy','Psychiatry','Psychology','Public Health','Radiology','Social Work'] },
+  { d:'Operations', s:['Call Center','Construction','Corporate Strategy','Customer Service Support','Enterprise Resource Planning','Facilities Management','Leasing','Logistics','Office Operations','Operations','Physical Security','Project Development','Quality Management','Real Estate','Safety','Store Operations','Supply Chain'] },
+  { d:'Sales', s:['Account Management','Business Development','Channel Sales','Customer Retention Development','Customer Success','Field Outside Sales','Inside Sales','Partnerships','Revenue Operations','Sales','Sales Enablement','Sales Engineering','Sales Operations','Sales Training'] },
+  { d:'Consulting', s:['Consultant'] }
+];
+// Fast lookup: subDept string → parent dept name
+var SUB_TO_DEPT = {};
+DEPT_TREE.forEach(function(g){ g.s.forEach(function(sub){ SUB_TO_DEPT[sub] = g.d; }); });
+
+// ── State ─────────────────────────────────────────────────────────────────────
+var keywords = [];
+var selected = { seniority: new Set(), industry: new Set(), departments: new Set(), country: new Set() };
+var optEls   = { seniority: [], industry: [], departments: [], country: [] };
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init() {
+  buildSuggestions();
+  Object.keys(DATA).forEach(function(cat){
+    if (cat !== 'departments') buildList(cat);
+  });
+  buildDeptList();
+  var kwInp = document.getElementById('kwInput');
+  kwInp.addEventListener('keydown', function(e){
+    if (e.key === 'Enter') { 
+      e.preventDefault(); 
+      addKw(this.value.trim()); 
+      this.value = ''; 
+      document.querySelectorAll('.chip.highlight').forEach(function(c){ c.classList.remove('highlight'); });
+    }
+    if (e.key === 'Backspace' && !this.value && keywords.length) { removeKw(keywords[keywords.length-1]); }
+  });
+  
+  kwInp.addEventListener('input', function(e){
+    var val = this.value.trim().toLowerCase();
+    document.querySelectorAll('.chip').forEach(function(c) {
+      if (val && c.textContent.toLowerCase().indexOf(val) !== -1) {
+        c.classList.add('highlight');
+      } else {
+        c.classList.remove('highlight');
+      }
+    });
+  });
+  // Load initial lead count as soon as dialog opens
+  refreshLeadCount();
+}
+
+// ── Dept hierarchy ────────────────────────────────────────────────────────────
+var deptGroupEls = []; // [{dg, dpEl, dcEl, subs:[{sub, el}]}]
+
+function buildDeptList() {
+  var container = document.getElementById('dept-container');
+  container.innerHTML = '';
+  deptGroupEls = [];
+
+  DEPT_TREE.forEach(function(group) {
+    var dg = document.createElement('div');
+    dg.className = 'dg';
+
+    // Parent row
+    var dp = document.createElement('div');
+    dp.className = 'dp';
+
+    var arrow = document.createElement('svg');
+    arrow.setAttribute('class','dp-arrow');
+    arrow.setAttribute('fill','none');
+    arrow.setAttribute('stroke','currentColor');
+    arrow.setAttribute('stroke-width','2');
+    arrow.setAttribute('viewBox','0 0 24 24');
+    arrow.innerHTML = '<path d="M9 18l6-6-6-6"/>';
+
+    var cbDiv = document.createElement('div');
+    cbDiv.className = 'dp-cb';
+    cbDiv.innerHTML = '<svg width="10" height="10" fill="none" stroke="#fff" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg>';
+
+    var nameSpan = document.createElement('span');
+    nameSpan.className = 'dp-name';
+    nameSpan.textContent = group.d;
+
+    var cntSpan = document.createElement('span');
+    cntSpan.className = 'dp-cnt';
+
+    dp.appendChild(arrow);
+    dp.appendChild(cbDiv);
+    dp.appendChild(nameSpan);
+    dp.appendChild(cntSpan);
+
+    // Children container
+    var dc = document.createElement('div');
+    dc.className = 'dc';
+
+    var subEls = [];
+    group.s.forEach(function(sub) {
+      var el = makeOpt('departments', sub);
+      dc.appendChild(el);
+      subEls.push({ sub: sub, el: el });
+    });
+
+    dg.appendChild(dp);
+    dg.appendChild(dc);
+    container.appendChild(dg);
+
+    var entry = { dg: dg, dp: dp, cbDiv: cbDiv, cntSpan: cntSpan, subs: subEls, dept: group.d };
+    deptGroupEls.push(entry);
+
+    // Arrow / expand toggle
+    arrow.addEventListener('click', function(e) {
+      e.stopPropagation();
+      dg.classList.toggle('open');
+    });
+
+    // Parent checkbox click
+    cbDiv.addEventListener('click', function(e) {
+      e.stopPropagation();
+      toggleParent(entry);
+    });
+
+    // Parent row click → expand
+    dp.addEventListener('click', function() {
+      dg.classList.toggle('open');
+    });
+  });
+}
+
+function toggleParent(entry) {
+  var allSelected = entry.subs.every(function(o){ return selected.departments.has(o.sub); });
+  entry.subs.forEach(function(o) {
+    if (allSelected) {
+      selected.departments.delete(o.sub);
+      o.el.classList.remove('on');
+    } else {
+      selected.departments.add(o.sub);
+      o.el.classList.add('on');
+    }
+  });
+  updateParentState(entry);
+  updateBadge('departments');
+  updateTagsBar();
+}
+
+function updateParentState(entry) {
+  var total    = entry.subs.length;
+  var selCount = entry.subs.filter(function(o){ return selected.departments.has(o.sub); }).length;
+  var dp    = entry.dp;
+  var cbDiv = entry.cbDiv;
+
+  dp.classList.toggle('has-sel', selCount > 0);
+  dp.classList.toggle('all-sel', selCount === total && total > 0);
+  cbDiv.classList.toggle('partial', selCount > 0 && selCount < total);
+  entry.cntSpan.textContent = selCount > 0 ? selCount + '/' + total : '';
+}
+
+// ── Suggestions ───────────────────────────────────────────────────────────────
+function buildSuggestions() {
+  var wrap = document.getElementById('suggestWrap');
+  SUGGESTIONS.forEach(function(s){
+    var el = document.createElement('span');
+    el.className = 'chip';
+    el.textContent = s;
+    el.addEventListener('click', function(){
+      if (keywords.indexOf(s) === -1) { addKw(s); }
+    });
+    wrap.appendChild(el);
+  });
+}
+
+function refreshChips() {
+  document.querySelectorAll('.chip').forEach(function(c){
+    c.classList.toggle('used', keywords.indexOf(c.textContent) !== -1);
+  });
+}
+
+// ── Keywords ──────────────────────────────────────────────────────────────────
+function addKw(val) {
+  if (!val || keywords.indexOf(val) !== -1) return;
+  keywords.push(val);
+  renderKwBox();
+  refreshChips();
+  updateBadge('kw');
+  updateTagsBar();
+}
+
+function removeKw(val) {
+  keywords = keywords.filter(function(k){ return k !== val; });
+  renderKwBox();
+  refreshChips();
+  updateBadge('kw');
+  updateTagsBar();
+}
+
+// ── Typeahead Keyword Helper ──
+// Filter suggestion chips dynamically based on search input
+document.getElementById('kwInput').addEventListener('input', function(e){
+  var val = this.value.trim().toLowerCase();
+  document.querySelectorAll('.chip').forEach(function(c) {
+    if (val && c.textContent.toLowerCase().indexOf(val) !== -1) {
+      c.classList.add('highlight');
+    } else {
+      c.classList.remove('highlight');
+    }
+  });
+});
+
+function renderKwBox() {
+  var box = document.getElementById('kwBox');
+  box.querySelectorAll('.kw-tag').forEach(function(t){ t.remove(); });
+  var inp = document.getElementById('kwInput');
+  keywords.forEach(function(kw){
+    var tag = document.createElement('span');
+    tag.className = 'kw-tag';
+    tag.innerHTML = kw + ' <span class="x">×</span>';
+    tag.querySelector('.x').addEventListener('click', function(){ removeKw(kw); });
+    box.insertBefore(tag, inp);
+  });
+}
+
+// ── Option list ───────────────────────────────────────────────────────────────
+function buildList(cat) {
+  var list = document.getElementById('list-' + cat);
+  list.innerHTML = '';
+  optEls[cat] = [];
+  DATA[cat].forEach(function(val){
+    var el = makeOpt(cat, val);
+    list.appendChild(el);
+    optEls[cat].push({ el: el, v: val.toLowerCase() });
+  });
+}
+
+function makeOpt(cat, val) {
+  var d = document.createElement('div');
+  d.className = 'opt' + (selected[cat].has(val) ? ' on' : '');
+  d.innerHTML = '<div class="cb"><svg width="10" height="10" fill="none" stroke="#fff" stroke-width="3" viewBox="0 0 24 24"><path d="M20 6L9 17l-5-5"/></svg></div><span class="opt-lbl">' + val + '</span>';
+  d.addEventListener('click', function(){ toggleOpt(cat, val, d); });
+  return d;
+}
+
+function toggleOpt(cat, val, el) {
+  if (selected[cat].has(val)) { selected[cat].delete(val); el.classList.remove('on'); }
+  else { selected[cat].add(val); el.classList.add('on'); }
+  // Update parent state if this is a dept sub-item
+  if (cat === 'departments') {
+    var parentDept = SUB_TO_DEPT[val];
+    if (parentDept) {
+      var entry = deptGroupEls.find(function(g){ return g.dept === parentDept; });
+      if (entry) updateParentState(entry);
+    }
+  }
+  updateBadge(cat);
+  updateTagsBar();
+}
+
+function addCustom(cat) {
+  var inp = document.getElementById('input-' + cat);
+  var val = inp.value.trim();
+  if (!val) return;
+  if (DATA[cat].indexOf(val) === -1) {
+    DATA[cat].unshift(val);
+    var list = document.getElementById('list-' + cat);
+    var el = makeOpt(cat, val);
+    list.insertBefore(el, list.firstChild);
+    optEls[cat].unshift({ el: el, v: val.toLowerCase() });
+  }
+  if (!selected[cat].has(val)) {
+    var item = optEls[cat].find(function(o){ return o.v === val.toLowerCase(); });
+    if (item) { selected[cat].add(val); item.el.classList.add('on'); }
+  }
+  inp.value = '';
+  updateBadge(cat);
+  updateTagsBar();
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+function filterList(cat, q) {
+  q = q.toLowerCase().trim();
+  if (cat === 'departments') { filterDeptList(q); return; }
+  var shown = 0;
+  optEls[cat].forEach(function(o){
+    var m = !q || o.v.includes(q);
+    o.el.style.display = m ? '' : 'none';
+    if (m) shown++;
+  });
+  document.getElementById('nr-' + cat).style.display = shown ? 'none' : 'block';
+}
+
+function filterDeptList(q) {
+  var totalShown = 0;
+  deptGroupEls.forEach(function(entry) {
+    var deptMatch = !q || entry.dept.toLowerCase().includes(q);
+    var childShown = 0;
+    entry.subs.forEach(function(o) {
+      var m = !q || deptMatch || o.sub.toLowerCase().includes(q);
+      o.el.style.display = m ? '' : 'none';
+      if (m) childShown++;
+    });
+    var groupVisible = deptMatch || childShown > 0;
+    entry.dg.style.display = groupVisible ? '' : 'none';
+    if (groupVisible) {
+      totalShown++;
+      if (q) entry.dg.classList.add('open');
+    }
+  });
+  document.getElementById('nr-departments').style.display = totalShown ? 'none' : 'block';
+}
+
+// ── Badge ─────────────────────────────────────────────────────────────────────
+function updateBadge(cat) {
+  var b = document.getElementById('badge-' + cat);
+  if (!b) return;
+  var n = cat === 'kw' ? keywords.length : selected[cat].size;
+  b.textContent = n;
+  b.style.display = n ? 'inline-block' : 'none';
+}
+
+// ── Tags bar ──────────────────────────────────────────────────────────────────
+function updateTagsBar() {
+  var bar = document.getElementById('tagsBar');
+  bar.querySelectorAll('.atag').forEach(function(t){ t.remove(); });
+  var count = 0;
+
+  keywords.forEach(function(kw){
+    count++;
+    bar.appendChild(makeATag(kw, function(){ removeKw(kw); }));
+  });
+
+  Object.keys(selected).forEach(function(cat){
+    selected[cat].forEach(function(val){
+      count++;
+      bar.appendChild(makeATag(val, function(){
+        selected[cat].delete(val);
+        var item = optEls[cat].find(function(o){ return o.v === val.toLowerCase(); });
+        if (item) item.el.classList.remove('on');
+        updateBadge(cat);
+        updateTagsBar();
+      }));
+    });
+  });
+
+  document.getElementById('emptyHint').style.display = count ? 'none' : 'inline';
+  scheduleCount();
+}
+
+// ── Live lead count ──────────────────────────────────────────────────
+var _countTimer = null;
+
+function scheduleCount() {
+  clearTimeout(_countTimer);
+  _countTimer = setTimeout(refreshLeadCount, 600);
+}
+
+function buildFilters() {
+  return {
+    keywords    : keywords.slice(),
+    seniority   : Array.from(selected.seniority),
+    industry    : Array.from(selected.industry),
+    departments : Array.from(selected.departments),
+    country     : Array.from(selected.country),
+    perCompany  : parseInt(document.getElementById('perCompany').value) || 1
+  };
+}
+
+function refreshLeadCount() {
+  var numEl = document.getElementById('tcNum');
+  var subEl = document.getElementById('tcSub');
+  if (typeof google === 'undefined') {
+    numEl.textContent = '—';
+    numEl.classList.remove('loading');
+    subEl.textContent = 'matching leads';
+    return;
+  }
+
+  var filters = buildFilters();
+  // Since we fall back to the default fixed list of titles when no custom keywords are entered,
+  // we always have a title filter active. Therefore, we run the count query immediately.
+
+  numEl.textContent = '⏳';
+  numEl.classList.add('loading');
+  subEl.textContent = 'matching leads';
+  
+  google.script.run
+    .withSuccessHandler(function(n) {
+      numEl.classList.remove('loading');
+      numEl.textContent = Number(n).toLocaleString();
+      subEl.textContent = 'matching leads';
+    })
+    .withFailureHandler(function() {
+      numEl.classList.remove('loading');
+      numEl.textContent = '—';
+      subEl.textContent = 'matching leads';
+    })
+    .countDecisionMakerLeads(filters);
+}
+
+function makeATag(label, onRemove) {
+  var s = document.createElement('span');
+  s.className = 'atag';
+  s.innerHTML = label + ' <span class="x">×</span>';
+  s.querySelector('.x').addEventListener('click', onRemove);
+  return s;
+}
+
+// ── Accordion ─────────────────────────────────────────────────────────────────
+function toggle(id) { document.getElementById(id).classList.toggle('open'); }
+
+// ── Clear all ─────────────────────────────────────────────────────────────────
+function clearAll() {
+  keywords = [];
+  renderKwBox();
+  refreshChips();
+  Object.keys(selected).forEach(function(cat){
+    selected[cat].clear();
+    optEls[cat].forEach(function(o){ o.el.classList.remove('on'); });
+    updateBadge(cat);
+  });
+  // Reset dept hierarchy UI
+  deptGroupEls.forEach(function(entry){
+    entry.subs.forEach(function(o){ o.el.classList.remove('on'); });
+    updateParentState(entry);
+  });
+  updateBadge('kw');
+  updateTagsBar();
+}
+
+// ── Apply ─────────────────────────────────────────────────────────────────────
+function applyFilters() {
+  var filters = {
+    keywords    : keywords.slice(),
+    seniority   : Array.from(selected.seniority),
+    industry    : Array.from(selected.industry),
+    departments : Array.from(selected.departments),
+    country     : Array.from(selected.country),
+    perCompany  : parseInt(document.getElementById('perCompany').value) || 1
+  };
+
+  if (typeof google !== 'undefined') {
+    var btn = document.getElementById('runBtn');
+    var sp  = document.getElementById('spinner');
+    btn.disabled = true; sp.style.display = 'block';
+    
+    // Confirm before proceeding
+    var confirmMsg = 'Please Confirm\n'
+                   + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n'
+                   + 'Keywords     : ' + filters.keywords.length + ' item(s)\n'
+                   + 'Seniorities  : ' + filters.seniority.length + ' item(s)\n'
+                   + 'Industries   : ' + filters.industry.length + ' item(s)\n'
+                   + 'Departments  : ' + filters.departments.length + ' item(s)\n'
+                   + 'Countries    : ' + filters.country.length + ' item(s)\n'
+                   + 'Per Company  : ' + filters.perCompany + ' lead(s)\n'
+                   + '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n'
+                   + 'A new Cleaned Sheet will be created. Proceed?';
+                   
+    if (!confirm(confirmMsg)) {
+      btn.disabled = false; sp.style.display = 'none';
+      return;
+    }
+    
+    google.script.run
+      .withSuccessHandler(function(msg){ btn.disabled=false; sp.style.display='none'; if(msg) alert(msg); google.script.host.close(); })
+      .withFailureHandler(function(e){ btn.disabled=false; sp.style.display='none'; alert('Error: '+e.message); })
+      .runDecisionMakerFilter(filters);
+  } else {
+    alert(JSON.stringify(filters, null, 2));
+  }
+}
+
+init();
+</script>
+</body>
+</html>

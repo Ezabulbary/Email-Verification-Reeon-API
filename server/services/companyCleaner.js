@@ -91,7 +91,7 @@ function startCleaning(user, listId, overwrite) {
   const newName = user.email + ', the company name cleaning';
   const existing = lists.getListByName(user.id, newName);
   if (existing && !overwrite) {
-    return { ok: false, needsConfirm: true, message: `The list '${newName}' already exists.\n\nDo you want to overwrite it and start cleaning fresh?` };
+    return { ok: false, needsConfirm: true, message: `The tab '${newName}' already exists.\n\nDo you want to overwrite it and start cleaning fresh?` };
   }
 
   const companyCol = source.columns.findIndex((h) => /^(company|company name)$/i.test(String(h).trim()));
@@ -126,7 +126,7 @@ function startCleaning(user, listId, overwrite) {
 
   runJob(jobId); // background
 
-  return { ok: true, jobId, listId: newId, message: `🚀 Created target list: "${newName}"\n\nStarting high-speed cleaning process in the background...` };
+  return { ok: true, jobId, listId: newId, message: `🚀 Created target tab: "${newName}"\n\nStarting high-speed cleaning process...` };
 }
 
 // =============================================================================
@@ -139,7 +139,7 @@ async function runJob(jobId) {
     const apiKey = getSetting('openai_api_key', '') || config.openai.defaultKey;
     const model = getSetting('openai_model', '') || config.openai.defaultModel;
     if (!apiKey) {
-      updateJob(jobId, { status: 'error', error: 'API key not found. Please set the OpenAI key in Admin → Settings.' });
+      updateJob(jobId, { status: 'error', error: 'API key not found. Please set CHATGPT_API_KEY in Admin → API Keys & Settings.' });
       finishActivity(jobId, 'error');
       return;
     }
@@ -231,7 +231,7 @@ function getProgress(user) {
   const job = latestJobForUser(user.id);
   if (!job) return { ok: true, active: false, message: 'ℹ️ No active cleaning process found.\nClick "Start Cleaning Company Names" to begin.' };
   const list = lists.getList(job.list_id);
-  if (!list) return { ok: true, active: false, message: 'ℹ️ The cleaning list was deleted.' };
+  if (!list) return { ok: true, active: false, message: 'ℹ️ The cleaning tab was deleted.' };
 
   const rows = lists.getRows(job.list_id);
   let emptyCount = 0;
@@ -250,13 +250,18 @@ function getProgress(user) {
     error: '❌ Error: ' + (job.error || 'unknown')
   }[job.status] || job.status;
 
+  // Same final alerts as cleanCompanyNames() in the sheet
+  const doneMessage = job.status === 'completed'
+    ? '🎉 Success!\n\nAll company names have been cleaned successfully in the new tab!'
+    : job.status === 'error' ? '❌ ' + (job.error || 'Cleaning stopped with an error.')
+    : job.status === 'stopped' ? '♻️ Cleaning was reset.' : null;
   return {
     ok: true, active: job.status === 'running', status: job.status, listId: job.list_id, listName: list.name,
-    processed, total, remaining: emptyCount, percent: pct, error: job.error,
+    processed, total, remaining: emptyCount, percent: pct, error: job.error, doneMessage,
     message: [
       '📊 Company Names Cleaning Progress',
       '══════════════════════════════════',
-      `📁 Cleaning List      : ${list.name}`,
+      `📁 Cleaning Sheet     : ${list.name}`,
       `📈 Last Processed Row : Row ${job.last_processed_row + 2}`,
       `✅ Cleaned Rows       : ${processed} / ${total} (${pct}%)`,
       `⏳ Remaining Rows     : ${emptyCount}`,

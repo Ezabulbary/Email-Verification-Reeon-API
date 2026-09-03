@@ -56,6 +56,7 @@ function collectUnverified(listId, emailCol, statusCol) {
 //  🚀 LEAD LIST CLEAN
 // =============================================================================
 async function cleanLeadList(user, listId) {
+  const SCRIPT_START = Date.now();
   const { list, emailCol, statusCol, dateCol } = lists.ensureVerificationColumns(listId);
 
   const pendingRows = collectUnverified(listId, emailCol, statusCol);
@@ -119,29 +120,55 @@ async function cleanLeadList(user, listId) {
     return { ok: false, message: '❌ No tasks could be created.\nFailed accounts: ' + failBatches.join(', ') };
   }
 
-  // Kick off a fast background poll (10s interval, ~100s) — like the in-script aggressive poll
-  fastPoll(successTasks.map((t) => t.taskId));
+  // ── Aggressive in-script polling (every 10s, up to 100s) — same as the sheet ──
+  const stillPending = await aggressivePoll(successTasks.map((t) => t.taskId), SCRIPT_START);
 
   // Refresh cached balances for the used accounts (best effort, in background)
   accountCredits.forEach((ac) => reoon.getCreditBalance(ac.account, true).catch(() => {}));
 
+  const completedCount = successTasks.length - stillPending.length;
   const lines = [
     '📊 Lead List Clean — Summary',
     '══════════════════════════════════',
     `📤 Total Submitted : ${emailsToProcess.length} emails (Daily Credits Only)`,
-    `⏳ In Progress Tasks: ${successTasks.length} task(s)`,
+    `✅ Completed Tasks : ${completedCount} task(s) (Sheet updated)`,
+    `⏳ In Progress Tasks: ${stillPending.length} task(s) (In trigger)`,
     `🔁 Remaining Leads : ${remaining} email(s) (Will process in next run)`,
     '',
     '📋 Detailed Accounts Usage:',
     '──────────────────────────────────'
   ];
-  successTasks.forEach((t) => lines.push(`  • ${t.account}: ${t.leads} leads | Status: ⏳ In Progress | Task ID: ${t.taskId}`));
+  successTasks.forEach((t) => {
+    const isDone = stillPending.indexOf(t.taskId) === -1;
+    lines.push(`  • ${t.account}: ${t.leads} leads | Status: ${isDone ? '✅ Completed' : '⏳ In Progress'} | Task ID: ${t.taskId}`);
+  });
   if (failBatches.length) { lines.push(''); lines.push('  ❌ Failed Accounts: ' + failBatches.join(', ')); }
-  lines.push('');
-  lines.push('⚡ Results are written automatically in the background (every minute). Refresh the list to see them.');
+  if (stillPending.length) { lines.push(''); lines.push('⚡ Background trigger is checking progress every 1 minute.'); }
   if (remaining > 0) lines.push(`▶ Remaining ${remaining} leads will be cleaned in the next run.`);
 
-  return { ok: true, message: lines.join('\n'), submitted: emailsToProcess.length, tasks: successTasks, remaining, failed: failBatches };
+  return { ok: true, message: lines.join('\n'), submitted: emailsToProcess.length, tasks: successTasks, completed: completedCount, inProgress: stillPending.length, remaining, failed: failBatches };
+}
+
+const LLC_POLL_INTERVAL_MS = 10 * 1000;
+const LLC_SCRIPT_DEADLINE_MS = 100 * 1000;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Polls every 10 s until all given tasks are done or the 100 s deadline passes. Returns task ids still pending. */
+async function aggressivePoll(taskIds, scriptStart) {
+  const deadline = scriptStart + LLC_SCRIPT_DEADLINE_MS;
+  const remainingIds = () => {
+    if (!taskIds.length) return [];
+    return db.prepare(`SELECT task_id FROM pending_tasks WHERE task_id IN (${taskIds.map(() => '?').join(',')})`).all(...taskIds).map((r) => r.task_id);
+  };
+  let pending = remainingIds();
+  while (pending.length) {
+    const left = deadline - Date.now();
+    if (left <= 0 || left < LLC_POLL_INTERVAL_MS + 5000) break;
+    await sleep(LLC_POLL_INTERVAL_MS);
+    try { await checkPendingTaskResults(null, { force: true }); } catch (e) { console.log('poll error: ' + e.message); }
+    pending = remainingIds();
+  }
+  return pending;
 }
 
 // =============================================================================
@@ -220,6 +247,17 @@ async function checkPendingTaskResults(user, opts = {}) {
   const details = [];
   try {
     const tasks = getPendingTasks(user);
+    if (tasks.length === 0) {
+      // Recovery: no stored tasks — does the active sheet have orphan "Pending..." rows?
+      let orphanCount = 0;
+      if (opts.listId) { try { orphanCount = lists.countPendingRows(opts.listId); } catch (e) { /* ignore */ } }
+      return {
+        ok: true, noTasks: true, orphanCount, written: 0, remaining: 0,
+        message: orphanCount > 0
+          ? orphanCount + ' row(s) have "Pending..." status but no active Task ID.\n\nClearing them will allow them to be processed again in the next run.\nDo you want to clear them?'
+          : '✅ No Pending Tasks found.'
+      };
+    }
     for (const task of tasks) {
       if (!task.api_key) {
         details.push(`${task.task_id}: account "${task.account}" no longer exists — skipped`);
@@ -276,4 +314,4 @@ function clearAllPendingTasks(user) {
   return { ok: true, deleted: res.changes, message: `✅ ${res.changes} pending task(s) deleted successfully.` };
 }
 
-module.exports = { cleanLeadList, verifyWithAccount, checkPendingTaskResults, clearAllPendingTasks, getPendingTasks };
+module.exports = { cleanLeadList, verifyWithAccount, checkPendingTaskResults, clearAllPendingTasks, getPendingTasks, aggressivePoll };

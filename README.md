@@ -14,8 +14,12 @@ Google Sheets automation, without Google Sheets:
 | 🔃 Refresh & Show All Credits | same | **Credits** page + header pill |
 | 📖 Guideline / Help | same | **Guideline / Help** page |
 
-Instead of sheet tabs, users **upload CSV / XLSX files** ("lists"), run the tools, and
-**download** the result as CSV or XLSX.
+The sidebar contains the **📧 Email Verifier menu exactly as in the Google Sheet** (same items, order,
+labels, alerts and dialogs). Every menu action runs on the **active sheet** (the lead list open on
+screen, or the one chosen in the top bar), just like `SpreadsheetApp.getActiveSheet()`. Lead lists are
+uploaded as CSV / XLSX and downloaded back as CSV / XLSX; the `info` activity log is a read-only page.
+The original `decision_maker.html` and `GuidelineDialog.html` dialogs are reused **unchanged**
+(served from `public/dialogs/` with a tiny `google.script.run` shim).
 
 > The original Google Apps Script code is kept **unchanged** in `google-apps-script/`
 > (that folder is in `.gitignore`, so it is never committed).
@@ -92,6 +96,7 @@ server/
     lists.js               upload, view, download, rename, delete, clear "Pending..." rows
     verify.js              credits, Lead List Clean, Verify Account (admin), pending tasks
     tools.js               Decision Makers, Company Cleaner, Activity log
+    gas.js                 google.script.run bridge + serves the original dialogs
   services/
     reoon.js               Reoon API client + credit cache        (Code.gs: getCreditBalance…)
     leadListCleaner.js     Lead List Clean, Verify Emails, poller  (LeadListCleaner.gs + verifyEmails)
@@ -103,7 +108,9 @@ server/
     workers.js             background intervals (= time-based triggers)
   scripts/createAdmin.js
 public/
-  index.html, app.js, styles.css, dm-data.js (filter data from decision_maker.html)
+  index.html, app.js, styles.css   sidebar UI with the Email Verifier menu + sheet grid
+  gas-shim.js                      google.script.run / google.script.host shim for the dialogs
+  dialogs/                         verbatim copies of decision_maker.html + GuidelineDialog.html
 google-apps-script/        original Sheets code — untouched, git-ignored
 data/                      SQLite database (created on first run, git-ignored)
 ```
@@ -112,11 +119,11 @@ data/                      SQLite database (created on first run, git-ignored)
 
 ## 🛠 How the sheet behaviours were mapped
 
-* **Sheet tab → List.** `Verification Status` and `Verification Date` columns are inserted
+* **Sheet tab → lead list (sheet).** Each uploaded file is a sheet; the `info` tab is the read-only Activity Log page. `Verification Status` and `Verification Date` columns are inserted
   right after `Email` when missing, exactly like the sheet code.
-* **Time-based triggers → background intervals.** Pending Reoon tasks are polled every
-  `POLL_INTERVAL_SECONDS` (default 60 s) plus a fast 10-second poll for ~100 s right after
-  submission (like the in-script aggressive poll). Company cleaning runs as a background job
+* **Time-based triggers → background intervals.** Lead List Clean polls Reoon every 10 s for up to
+  100 s inside the request (the sheet's aggressive poll) and shows the same summary; pending tasks
+  are then polled every `POLL_INTERVAL_SECONDS` (default 60 s) in the background. Company cleaning runs as a background job
   in batches of 100 rows and resumes automatically after a server restart.
 * **PropertiesService / CacheService → SQLite tables** (`pending_tasks`, `credit_cache`,
   `settings`, `clean_jobs`).
