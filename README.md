@@ -14,12 +14,14 @@ Google Sheets automation, without Google Sheets:
 | 🔃 Refresh & Show All Credits | same | **Credits** page + header pill |
 | 📖 Guideline / Help | same | **Guideline / Help** page |
 
-The sidebar contains the **📧 Email Verifier menu exactly as in the Google Sheet** (same items, order,
-labels, alerts and dialogs). Every menu action runs on the **active sheet** (the lead list open on
-screen, or the one chosen in the top bar), just like `SpreadsheetApp.getActiveSheet()`. Lead lists are
-uploaded as CSV / XLSX and downloaded back as CSV / XLSX; the `info` activity log is a read-only page.
-The original `decision_maker.html` and `GuidelineDialog.html` dialogs are reused **unchanged**
-(served from `public/dialogs/` with a tiny `google.script.run` shim).
+The sidebar is organised like the spreadsheet: **Sheets** (every uploaded CSV / XLSX is a sheet,
+listed like tabs), then the **📧 Email Verifier menu exactly as in the Google Sheet** (same items,
+order, labels, alerts and dialogs), then the read-only `info` activity log and the admin pages.
+Every menu action lives in exactly one place and runs on the **selected sheet** (the one open on
+screen), like `SpreadsheetApp.getActiveSheet()`. Only one action can run at a time, so the same
+job cannot be started twice by accident. The original `decision_maker.html` and
+`GuidelineDialog.html` dialogs are reused **unchanged** (served from `public/dialogs/` with a tiny
+`google.script.run` shim).
 
 > The original Google Apps Script code is kept **unchanged** in `google-apps-script/`
 > (that folder is in `.gitignore`, so it is never committed).

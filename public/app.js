@@ -98,10 +98,11 @@
   // ── State / routing ────────────────────────────────────────────────────────
   const state = { user: null, credits: null, lists: [], activeId: null, verifyOpen: false };
   const PAGE = 200;
-  const routes = { '': 'overview', overview: 'overview', lists: 'lists', list: 'listDetail', credits: 'credits', activity: 'activity', users: 'users', settings: 'settings', account: 'account' };
+  const routes = { '': 'sheets', sheets: 'sheets', list: 'sheet', activity: 'activity', users: 'users', settings: 'settings', account: 'account' };
   const parseHash = () => { const [name, ...args] = location.hash.replace(/^#\/?/, '').split('/'); return { name: name || '', args }; };
   window.addEventListener('hashchange', render);
   const isAdmin = () => state.user && state.user.role === 'admin';
+  window.addEventListener('hashchange', () => { renderNav(); updateSheetBadge(); });
 
   async function boot() {
     try { state.user = (await api('/auth/me')).user; } catch (e) { state.user = null; }
@@ -134,11 +135,16 @@
   function setActive(id) {
     state.activeId = Number(id) || null;
     try { localStorage.setItem('evd.active.' + state.user.id, String(state.activeId || '')); } catch (e) { /* ignore */ }
-    const sel = $('#active-sel'); if (sel) sel.value = String(state.activeId || '');
+    renderNav(); updateSheetBadge();
+  }
+  function updateSheetBadge() {
+    const el = $('#sheet-badge'); if (!el) return;
+    const l = activeList();
+    el.innerHTML = l ? `📄 Selected sheet: <b>${esc(l.name)}</b>` : '📄 No sheet selected — open one from the sidebar';
   }
   async function requireActiveList() {
     const l = activeList();
-    if (!l) { await uiAlert('❌ No lead list is selected.\n\nUpload a lead list (Lead Lists → Upload) or pick the active sheet in the top bar, then run this again.'); return null; }
+    if (!l) { await uiAlert('❌ No sheet is selected.\n\nOpen a sheet from the sidebar (or upload one with "＋ Upload sheet"), then run this again.'); return null; }
     return l;
   }
 
@@ -146,7 +152,7 @@
   function render() {
     const app = $('#app');
     if (!state.user) { app.innerHTML = loginView(); bindLogin(); return; }
-    const view = routes[parseHash().name] || 'overview';
+    const view = routes[parseHash().name] || 'sheets';
     app.innerHTML = `
       <div class="app">
         <aside class="sidebar" id="sidebar">
@@ -158,7 +164,7 @@
           <div class="topbar">
             <div style="display:flex;align-items:center;gap:10px;min-width:0"><button class="btn sm menu-btn" id="menu-btn">☰</button><h2 id="page-title"></h2></div>
             <div class="tr">
-              <div class="active-sheet">📄 Active sheet: <select id="active-sel">${activeOptions()}</select></div>
+              <div class="active-sheet" id="sheet-badge"></div>
               <div class="credits-pill" id="credits-pill">${creditsPill()}</div>
             </div>
           </div>
@@ -168,32 +174,30 @@
     renderNav();
     $('#logout').onclick = async () => { await api('/auth/logout', { method: 'POST' }); state.user = null; location.hash = ''; render(); };
     $('#menu-btn').onclick = () => $('#sidebar').classList.toggle('open');
-    $('#active-sel').onchange = (e) => setActive(e.target.value);
+    updateSheetBadge();
     views[view](parseHash().args).catch((e) => { $('#content').innerHTML = `<div class="alert err">${esc(e.message)}</div>`; });
   }
-  function activeOptions() {
-    if (!state.lists.length) return '<option value="">— no lead lists yet —</option>';
-    const cur = activeList();
-    return state.lists.map((l) => `<option value="${l.id}" ${cur && cur.id === l.id ? 'selected' : ''}>${esc(l.name)}</option>`).join('');
-  }
-  function refreshActiveSelect() { const s = $('#active-sel'); if (s) s.innerHTML = activeOptions(); }
+  function refreshActiveSelect() { renderNav(); updateSheetBadge(); }
   function setTitle(t) { $('#page-title').textContent = t; document.title = t + ' — Email Verifier'; }
 
-  // Sidebar: pages + the Sheet menu (1:1) + admin
+  // Sidebar: sheets (like the tabs) + the Sheet menu (1:1) + admin. Every action lives here ONCE.
   function renderNav() {
     const nav = $('#nav'); if (!nav) return;
-    const { name } = parseHash();
+    const { name, args } = parseHash();
     const cr = state.credits || { accounts: [], totalDaily: 0 };
     const accounts = cr.accounts.filter((a) => a.enabled);
-    const page = (id, icon, label) => `<a href="#/${id}" class="${name === id || (id === 'overview' && !name) || (id === 'lists' && name === 'list') ? 'active' : ''}">${icon} ${label}</a>`;
+    const cur = activeList();
+    const page = (id, icon, label) => `<a href="#/${id}" class="${name === id || (id === 'sheets' && !name) ? 'active' : ''}">${icon} ${label}</a>`;
     const mi = (action, label, cls) => `<div class="mi ${cls || ''}" data-action="${action}">${label}</div>`;
+    const MAX = 12;
+    const sheets = state.lists.slice(0, MAX);
     nav.innerHTML = `
-      <div class="nav-sec">Main</div>
-      ${page('overview', '🏠', 'Overview')}
-      ${page('lists', '📂', 'Lead Lists (sheets)')}
-      ${page('credits', '📊', 'Credits')}
-      ${page('activity', '📋', isAdmin() ? 'info — Activity Log (all users)' : 'info — My Activity')}
-      <div class="nav-sec menu">📧 Email Verifier menu</div>
+      <div class="nav-sec">📄 Sheets</div>
+      ${page('sheets', '📂', 'All sheets')}
+      ${mi('upload', '＋ Upload sheet (CSV / XLSX)')}
+      ${sheets.map((l) => `<a href="#/list/${l.id}" class="sheet ${name === 'list' && Number(args[0]) === l.id ? 'active' : (cur && cur.id === l.id ? 'selected' : '')}" title="${esc(l.name)}">${l.pending_tasks ? '<span class="dot"></span>' : '<span class="dot off"></span>'}<span class="n">${esc(l.name)}</span><small>${num(l.row_count)}</small></a>`).join('')}
+      ${state.lists.length > MAX ? `<a href="#/sheets" class="more">… ${state.lists.length - MAX} more</a>` : ''}
+      <div class="nav-sec menu">📧 Email Verifier menu <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:500">— runs on the selected sheet</span></div>
       <div class="mi ${isAdmin() ? '' : 'locked'}" data-action="toggle-verify">${isAdmin() ? '✉️ Verify Account Emails' : '✉️ Verify Account Emails (Locked by Reachoutly 🔒)'}<span class="chev">${state.verifyOpen ? '▼' : '▶'}</span></div>
       <div class="sub ${state.verifyOpen ? 'open' : ''}">${accounts.length ? accounts.map((a) => mi('verify:' + a.name, `Verify ${esc(cap(a.name))}<small>${a.ok ? 'D: ' + num(a.daily) + ' | I: ' + num(a.instant) : 'N/A'}</small>`)).join('') : '<div class="mi locked">No API accounts configured</div>'}</div>
       <div class="sep"></div>
@@ -209,8 +213,10 @@
       <div class="sep"></div>
       ${mi('show-credits', '🔃 Refresh & Show All Credits')}
       ${mi('help', '📖 Guideline / Help')}
+      <div class="nav-sec">📊 Log</div>
+      ${page('activity', '📋', isAdmin() ? 'info — Activity Log (all users)' : 'info — My Activity')}
       ${isAdmin() ? `<div class="nav-sec">Admin</div>${page('users', '👥', 'Users')}${page('settings', '🔑', 'API Keys & Settings')}${mi('debug-credits', '🔍 Debug Credit Balance')}` : ''}
-      <div class="nav-sec">More</div>
+      <div class="nav-sec">Account</div>
       ${page('account', '👤', 'My Account')}`;
     $$('.mi', nav).forEach((el) => el.onclick = () => {
       if (el.dataset.action === 'toggle-verify') { state.verifyOpen = !state.verifyOpen; renderNav(); return; }
@@ -222,7 +228,13 @@
   }
 
   // ── Menu actions (= the sheet's menu functions) ────────────────────────────
+  let actionRunning = null;
   async function runAction(action) {
+    if (actionRunning) { toast('⏳ "' + actionRunning + '" is still running — please wait for it to finish.', 'err'); return; }
+    actionRunning = action.split(':')[0];
+    try { return await runActionInner(action); } finally { actionRunning = null; }
+  }
+  async function runActionInner(action) {
     const [name, arg] = action.split(':');
     switch (name) {
       case 'verify': return verifyAccount(arg);
@@ -240,7 +252,7 @@
       default: return;
     }
   }
-  const refreshCurrentView = async () => { await loadLists(); refreshActiveSelect(); const v = routes[parseHash().name] || 'overview'; if (v === 'listDetail' || v === 'overview' || v === 'lists' || v === 'activity') views[v](parseHash().args).catch(() => {}); };
+  const refreshCurrentView = async () => { await loadLists(); refreshActiveSelect(); const v = routes[parseHash().name] || 'sheets'; if (v === 'sheet' || v === 'sheets' || v === 'activity') views[v](parseHash().args).catch(() => {}); };
 
   // ✉️ Verify Account Emails → verifyEmails(tabName)
   async function verifyAccount(account) {
@@ -363,55 +375,27 @@
   };
   const kindBadge = (k) => ({ upload: '<span class="badge gray">upload</span>', decision_makers: '<span class="badge blue">decision makers</span>', company_clean: '<span class="badge">company clean</span>' }[k] || esc(k));
 
-  views.overview = async () => {
-    setTitle('Overview');
-    const c = $('#content'); c.innerHTML = '<div class="empty">Loading…</div>';
-    const [pending, act] = await Promise.all([api('/verify/pending'), api('/activity?limit=8')]);
-    const cr = state.credits || { accounts: [], totalDaily: 0, totalInstant: 0 };
-    const totalRows = state.lists.reduce((s, l) => s + l.row_count, 0);
-    c.innerHTML = `
-      <div class="grid grid-4" style="margin-bottom:16px">
-        <div class="stat"><div class="lbl">Total Daily Credits</div><div class="val green">${num(cr.totalDaily)}</div><div class="sub">${cr.accounts.filter((a) => a.enabled).length} active account(s)</div></div>
-        <div class="stat"><div class="lbl">Total Instant Credits</div><div class="val blue">${num(cr.totalInstant)}</div><div class="sub">protected — Lead List Clean uses daily only</div></div>
-        <div class="stat"><div class="lbl">Lead Lists (sheets)</div><div class="val">${num(state.lists.length)}</div><div class="sub">${num(totalRows)} rows total</div></div>
-        <div class="stat"><div class="lbl">Pending Tasks</div><div class="val ${pending.tasks.length ? 'amber' : ''}">${num(pending.tasks.length)}</div><div class="sub">checked every minute in background</div></div>
-      </div>
-      <div class="grid grid-2">
-        <div class="card"><h3>⚡ Quick actions</h3>
-          <div class="actions">
-            <button class="btn primary" data-run="upload">📤 Upload a lead list</button>
-            <button class="btn" data-run="llc">🚀 Lead List Clean</button>
-            <button class="btn" data-run="check-pending">🔄 Check Pending Results</button>
-            <button class="btn" data-run="decision-makers">🧹 Clean Decision Makers</button>
-            <button class="btn" data-run="cc-start">🔄 Start Cleaning Company Names</button>
-            <button class="btn" data-run="show-credits">🔃 Refresh & Show All Credits</button>
-          </div>
-          <div class="hint" style="margin-top:10px">All tools run on the <b>active sheet</b> shown in the top bar. The full 📧 Email Verifier menu is in the sidebar, same as in the Google Sheet.</div>
-          <div style="margin-top:14px">${pendingTable(pending.tasks)}</div>
-        </div>
-        <div class="card"><h3>📋 Recent activity <span class="right"><a class="btn sm ghost" href="#/activity">View all →</a></span></h3>${activityTable(act.rows, true)}</div>
-      </div>`;
-    $$('[data-run]', c).forEach((b) => b.onclick = () => runAction(b.dataset.run).catch((e) => uiAlert('❌ ' + e.message)));
-  };
   function pendingTable(tasks) {
     if (!tasks.length) return '<div class="empty" style="padding:10px">✅ No pending verification tasks.</div>';
     return `<div class="tbl-wrap"><table class="t"><thead><tr><th>Task ID</th><th>Account</th><th>Sheet</th><th>Emails</th><th>Last status</th><th>Submitted</th></tr></thead><tbody>
       ${tasks.map((t) => `<tr><td>${esc(t.task_id)}</td><td>${esc(t.account)}</td><td><a href="#/list/${t.list_id}">${esc(t.list_name || '—')}</a></td><td>${num(t.total)}</td><td>${esc(t.last_status || 'submitted')}</td><td>${fmtDate(t.created_at)}</td></tr>`).join('')}</tbody></table></div>`;
   }
 
-  views.lists = async () => {
-    setTitle('Lead Lists (sheets)');
+  views.sheets = async () => {
+    setTitle('All sheets');
     const c = $('#content');
     const draw = async () => {
       await loadLists(); refreshActiveSelect();
-      c.innerHTML = `<div class="card"><h3>📂 Your sheets <span class="right"><button class="btn sm primary" id="up">📤 Upload CSV / XLSX</button><button class="btn sm" id="reload">↻ Refresh</button></span></h3>
-        ${!state.lists.length ? '<div class="empty">No lead lists yet — upload a CSV or XLSX. Each upload becomes a sheet.</div>' : `
+      const pending = await api('/verify/pending');
+      c.innerHTML = `<div class="card"><h3>📂 Sheets <span class="right"><button class="btn sm primary" id="up">＋ Upload sheet (CSV / XLSX)</button><button class="btn sm" id="reload">↻ Refresh</button></span></h3>
+        ${!state.lists.length ? '<div class="empty">No sheets yet — upload a CSV or XLSX. Each upload becomes a sheet, then use the 📧 Email Verifier menu on the left.</div>' : `
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Sheet</th><th>Type</th><th>Rows</th><th>Cols</th><th>Pending tasks</th>${isAdmin() ? '<th>Owner</th>' : ''}<th>Updated</th><th>Actions</th></tr></thead><tbody>
-        ${state.lists.map((l) => `<tr><td><a href="#/list/${l.id}"><b>${esc(l.name)}</b></a>${l.id === state.activeId ? ' <span class="badge blue">active</span>' : ''}</td><td>${kindBadge(l.kind)}</td><td>${num(l.row_count)}</td><td title="${esc(l.columns.join(', '))}">${l.columns.length}</td>
+        ${state.lists.map((l) => `<tr><td><a href="#/list/${l.id}"><b>${esc(l.name)}</b></a>${l.id === state.activeId ? ' <span class="badge blue">selected</span>' : ''}</td><td>${kindBadge(l.kind)}</td><td>${num(l.row_count)}</td><td title="${esc(l.columns.join(', '))}">${l.columns.length}</td>
           <td>${l.pending_tasks ? `<span class="badge amber">${l.pending_tasks} running</span>` : '—'}</td>${isAdmin() ? `<td>${esc(l.owner_email)}</td>` : ''}<td>${fmtDate(l.updated_at)}</td>
           <td><a class="btn sm" href="#/list/${l.id}">Open</a><a class="btn sm" href="/api/lists/${l.id}/download?format=csv">CSV</a><a class="btn sm" href="/api/lists/${l.id}/download?format=xlsx">XLSX</a><button class="btn sm ghost" data-rename="${l.id}">Rename</button><button class="btn sm danger" data-del="${l.id}">Delete</button></td></tr>`).join('')}
         </tbody></table></div>`}
-        <div class="hint" style="margin-top:10px">First row must be the header. <b>Email</b> column → verification · <b>Title/Job Title</b> + <b>Company</b> → Decision Makers · <b>Company</b> (+ <b>Website</b>) → Company Name Cleaner.</div></div>`;
+        <div class="hint" style="margin-top:10px">First row must be the header. <b>Email</b> column → verification · <b>Title/Job Title</b> + <b>Company</b> → Decision Makers · <b>Company</b> (+ <b>Website</b>) → Company Name Cleaner.</div></div>
+        <div class="card"><h3>⏳ Pending verification tasks</h3>${pendingTable(pending.tasks)}</div>`;
       $('#up').onclick = () => uploadList();
       $('#reload').onclick = draw;
       $$('[data-del]').forEach((b) => b.onclick = async () => {
@@ -430,7 +414,7 @@
     await draw();
   };
 
-  views.listDetail = async (args) => {
+  views.sheet = async (args) => {
     const id = Number(args[0]);
     const c = $('#content'); c.innerHTML = '<div class="empty">Loading…</div>';
     let page = 0;
@@ -448,17 +432,8 @@
           <div class="stat"><div class="lbl">Pending…</div><div class="val ${st.pending ? 'amber' : ''}">${num(st.pending)}</div><div class="sub">${r.pending_tasks} active task(s)</div></div>
           <div class="stat"><div class="lbl">Verified</div><div class="val green">${num(verifiedTotal)}</div><div class="sub" style="white-space:normal">${byStatus || '—'}</div></div>
         </div>
-        <div class="card"><h3>📧 Email Verifier — run on this sheet <span class="right"><a class="btn sm" href="/api/lists/${list.id}/download?format=csv">⬇ CSV</a><a class="btn sm" href="/api/lists/${list.id}/download?format=xlsx">⬇ XLSX</a><button class="btn sm ghost" id="a-refresh">↻ Refresh</button></span></h3>
-          <div class="actions">
-            <button class="btn primary" data-run="llc">🚀 Lead List Clean (Total D: ${num(state.credits ? state.credits.totalDaily : 0)})</button>
-            <button class="btn" data-run="check-pending">🔄 Check Pending Results</button>
-            <button class="btn" data-run="decision-makers">🧹 Clean Decision Makers</button>
-            <button class="btn" data-run="cc-start">🔄 Start Cleaning Company Names</button>
-            ${isAdmin() ? `<span style="display:inline-flex;gap:6px;align-items:center"><select id="a-acc" style="width:auto;padding:6px 28px 6px 10px">${(state.credits ? state.credits.accounts : []).filter((a) => a.enabled).map((a) => `<option value="${esc(a.name)}">Verify ${esc(cap(a.name))} (${a.ok ? 'D: ' + num(a.daily) + ' | I: ' + num(a.instant) : 'N/A'})</option>`).join('') || '<option value="">no accounts</option>'}</select><button class="btn success" id="a-verify">✉️ Verify</button></span>`
-              : '<button class="btn ghost" data-run="verify:locked">✉️ Verify Account Emails (Locked by Reachoutly 🔒)</button>'}
-          </div>
-        </div>
-        <div class="card"><h3>📄 Sheet data <span class="right">rows ${num(page * PAGE + 1)}–${num(Math.min((page + 1) * PAGE, list.row_count))} of ${num(list.row_count)}</span></h3>
+        <div class="card"><h3>📄 Sheet data <span class="right">rows ${num(page * PAGE + 1)}–${num(Math.min((page + 1) * PAGE, list.row_count))} of ${num(list.row_count)} &nbsp;<a class="btn sm" href="/api/lists/${list.id}/download?format=csv">⬇ CSV</a><a class="btn sm" href="/api/lists/${list.id}/download?format=xlsx">⬇ XLSX</a><button class="btn sm ghost" id="a-rename">✏️ Rename</button><button class="btn sm ghost" id="a-refresh">↻</button></span></h3>
+          <div class="hint" style="margin-bottom:10px">Use the <b>📧 Email Verifier menu</b> on the left to run the tools on this sheet.</div>
           <div class="sheet"><table><thead>
             <tr class="letters"><th class="rn"></th>${list.columns.map((_, i) => `<th>${colLetter(i)}</th>`).join('')}</tr>
             <tr class="header"><th class="rn">1</th>${list.columns.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>
@@ -466,10 +441,12 @@
           </tbody></table></div>
           ${pages > 1 ? `<div class="pager"><button class="btn sm" id="pg-prev" ${page === 0 ? 'disabled' : ''}>← Prev</button><span>page ${page + 1} / ${pages}</span><button class="btn sm" id="pg-next" ${page + 1 >= pages ? 'disabled' : ''}>Next →</button></div>` : ''}
         </div>`;
-      $$('[data-run]', c).forEach((b) => b.onclick = () => runAction(b.dataset.run).catch((e) => uiAlert('❌ ' + e.message)));
       $('#a-refresh').onclick = draw;
+      $('#a-rename').onclick = async () => {
+        const r = await uiForm('✏️ Rename sheet', [{ name: 'name', label: 'New name', value: list.name, required: true }], 'Rename');
+        if (r) { try { await api('/lists/' + list.id, { method: 'PATCH', body: { name: r.name } }); await loadLists(); refreshActiveSelect(); } catch (e) { toast(e.message, 'err'); } draw(); }
+      };
       if ($('#pg-prev')) { $('#pg-prev').onclick = () => { page--; draw(); }; $('#pg-next').onclick = () => { page++; draw(); }; }
-      if ($('#a-verify')) $('#a-verify').onclick = () => verifyAccount($('#a-acc').value);
     };
     await draw();
   };
@@ -506,28 +483,6 @@
     $('#act-q').onkeydown = (e) => { if (e.key === 'Enter') { offset = 0; draw(); } };
     $('#act-fn').onchange = () => { offset = 0; draw(); };
     await draw();
-  };
-
-  views.credits = async () => {
-    setTitle('📊 Account Credits');
-    const c = $('#content');
-    const draw = async (force) => {
-      c.innerHTML = '<div class="empty">⏳ Fetching balances…</div>';
-      await loadCredits(force);
-      const cr = state.credits || { accounts: [], totalDaily: 0, totalInstant: 0 };
-      c.innerHTML = `
-        <div class="grid grid-3" style="margin-bottom:14px">
-          <div class="stat"><div class="lbl">🔢 Total Daily Credits</div><div class="val green">${num(cr.totalDaily)}</div></div>
-          <div class="stat"><div class="lbl">⚡ Total Instant Credits</div><div class="val blue">${num(cr.totalInstant)}</div></div>
-          <div class="stat"><div class="lbl">Accounts</div><div class="val">${cr.accounts.filter((a) => a.enabled).length} <span style="font-size:13px;color:var(--dim)">/ ${cr.accounts.length}</span></div></div>
-        </div>
-        <div class="card"><h3>All account credits <span class="right"><button class="btn sm" id="cr-refresh">🔃 Refresh & Show All Credits</button>${isAdmin() ? '<a class="btn sm" href="#/settings">🔑 Manage keys</a>' : ''}</span></h3>
-          <div class="tbl-wrap"><table class="t"><thead><tr><th>Account</th><th>Daily</th><th>Instant</th><th>Status</th><th>Fetched</th></tr></thead><tbody>
-            ${cr.accounts.length ? cr.accounts.map((a) => `<tr><td><b>${esc(a.name)}</b></td><td style="color:var(--green)">${num(a.daily)}</td><td>${num(a.instant)}</td><td>${!a.enabled ? '<span class="badge gray">disabled</span>' : a.ok ? '<span class="badge green">ok</span>' : '<span class="badge red">⚠️ unable to fetch</span>'}</td><td>${fmtDate(a.fetchedAt)}</td></tr>`).join('') : `<tr><td colspan="5" class="empty">No API accounts configured${isAdmin() ? ' — add them in API Keys & Settings.' : '. Ask your admin.'}</td></tr>`}
-          </tbody></table></div></div>`;
-      $('#cr-refresh').onclick = () => showAllCredits().then(() => draw(false));
-    };
-    await draw(false);
   };
 
   views.users = async () => {
@@ -669,7 +624,7 @@
     const { name, args } = parseHash();
     if (name !== 'list') return;
     const l = state.lists.find((x) => x.id === Number(args[0]));
-    if (l && l.pending_tasks) loadLists().then(() => views.listDetail(args));
+    if (l && l.pending_tasks) loadLists().then(() => views.sheet(args));
   }, 30000);
 
   boot();
