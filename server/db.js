@@ -1,9 +1,9 @@
 // =============================================================================
-//  db.js — SQLite database (better-sqlite3), schema + small helpers
+//  db.js — SQLite database (Node built-in node:sqlite), schema + small helpers
 // =============================================================================
 const fs = require('fs');
 const path = require('path');
-const Database = require('better-sqlite3');
+const Database = require('./sqlite');
 const bcrypt = require('bcryptjs');
 const config = require('./config');
 

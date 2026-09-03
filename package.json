@@ -5,25 +5,25 @@
   "main": "server/index.js",
   "private": true,
   "scripts": {
-    "start": "node server/index.js",
-    "dev": "node --watch server/index.js",
-    "create-admin": "node server/scripts/createAdmin.js"
+    "start": "node --no-warnings=ExperimentalWarning server/index.js",
+    "dev": "node --watch --no-warnings=ExperimentalWarning server/index.js",
+    "create-admin": "node --no-warnings=ExperimentalWarning server/scripts/createAdmin.js"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22.13"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^11.7.0",
     "cookie-session": "^2.1.0",
     "csv-parse": "^5.6.0",
     "csv-stringify": "^6.5.2",
     "dotenv": "^16.4.7",
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
-    "multer": "^1.4.5-lts.1"
+    "multer": "^2.3.0"
   },
   "overrides": {
-    "uuid": "^11.1.1"
+    "uuid": "^11.1.1",
+    "qs": "^6.16.0"
   }
 }

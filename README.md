@@ -40,7 +40,7 @@ Instead of sheet tabs, users **upload CSV / XLSX files** ("lists"), run the tool
 
 ## 🚀 Setup (5 minutes)
 
-Requirements: **Node.js 18+** (tested on Node 22).
+Requirements: **Node.js 22.13 or newer** (Node 24 recommended). No build tools / Visual Studio needed — the database uses Node's built-in SQLite.
 
 ```bash
 # 1. install dependencies
