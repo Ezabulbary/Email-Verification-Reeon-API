@@ -112,9 +112,9 @@
   new MutationObserver(() => enhancePasswordInputs(document)).observe(document.documentElement, { childList: true, subtree: true });
 
   // ── State / routing ────────────────────────────────────────────────────────
-  const state = { user: null, credits: null, lists: [], activeId: null, verifyOpen: false };
+  const state = { user: null, credits: null, lists: [], activeId: null, groups: { sheets: true, verify: true, dm: true, cc: true, admin: true, account: false } };
   const PAGE = 200;
-  const routes = { '': 'sheets', sheets: 'sheets', list: 'sheet', activity: 'activity', users: 'users', settings: 'settings', account: 'account' };
+  const routes = { '': 'overview', overview: 'overview', sheets: 'sheets', list: 'sheet', activity: 'activity', users: 'users', settings: 'settings', account: 'account' };
   const parseHash = () => { const [name, ...args] = location.hash.replace(/^#\/?/, '').split('/'); return { name: name || '', args }; };
   window.addEventListener('hashchange', render);
   const isAdmin = () => state.user && state.user.role === 'admin';
@@ -126,7 +126,7 @@
     render();
   }
   async function afterLogin() {
-    state.verifyOpen = false;
+    try { Object.assign(state.groups, JSON.parse(localStorage.getItem('evd.groups') || '{}')); } catch (e) { /* ignore */ }
     try { state.activeId = Number(localStorage.getItem('evd.active.' + state.user.id)) || null; } catch (e) { /* ignore */ }
     await Promise.all([loadLists(), loadCredits(false)]);
   }
@@ -168,14 +168,15 @@
   function render() {
     const app = $('#app');
     if (!state.user) { app.innerHTML = loginView(); bindLogin(); return; }
-    const view = routes[parseHash().name] || 'sheets';
+    const view = routes[parseHash().name] || 'overview';
     app.innerHTML = `
       <div class="app">
         <aside class="sidebar" id="sidebar">
           <div class="brand"><span class="ic">📧</span><span>Email Verifier<small>Reoon API Dashboard</small></span></div>
           <nav class="nav" id="nav"></nav>
-          <div class="me"><b>${esc(state.user.email)}</b><span class="badge ${isAdmin() ? '' : 'gray'}">${isAdmin() ? 'ADMIN' : 'USER'}</span><button class="btn ghost sm" id="logout" style="margin-left:auto">Logout</button></div>
+          <div class="me"><b>${esc(state.user.email)}</b><span class="badge ${isAdmin() ? '' : 'gray'}">${isAdmin() ? 'ADMIN' : 'USER'}</span></div>
         </aside>
+        <div class="sidebar-bg" id="sidebar-bg"></div>
         <div class="main">
           <div class="topbar">
             <div style="display:flex;align-items:center;gap:10px;min-width:0"><button class="btn sm menu-btn" id="menu-btn">☰</button><h2 id="page-title"></h2></div>
@@ -188,54 +189,62 @@
         </div>
       </div>`;
     renderNav();
-    $('#logout').onclick = async () => { await api('/auth/logout', { method: 'POST' }); state.user = null; location.hash = ''; render(); };
     $('#menu-btn').onclick = () => $('#sidebar').classList.toggle('open');
+    $('#sidebar-bg').onclick = () => $('#sidebar').classList.remove('open');
     updateSheetBadge();
     views[view](parseHash().args).catch((e) => { $('#content').innerHTML = `<div class="alert err">${esc(e.message)}</div>`; });
   }
   function refreshActiveSelect() { renderNav(); updateSheetBadge(); }
   function setTitle(t) { $('#page-title').textContent = t; document.title = t + ' — Email Verifier'; }
 
-  // Sidebar: sheets (like the tabs) + the Sheet menu (1:1) + admin. Every action lives here ONCE.
+  // Sidebar: Overview on top, then collapsible sections. Every action lives here exactly once.
   function renderNav() {
     const nav = $('#nav'); if (!nav) return;
     const { name, args } = parseHash();
     const cr = state.credits || { accounts: [], totalDaily: 0 };
-    const accounts = cr.accounts.filter((a) => a.enabled);
     const cur = activeList();
-    const page = (id, icon, label) => `<a href="#/${id}" class="${name === id || (id === 'sheets' && !name) ? 'active' : ''}">${icon} ${label}</a>`;
+    const isPage = (id) => name === id || (id === 'overview' && !name);
+    const page = (id, icon, label, cls) => `<a href="#/${id}" class="${cls || ''} ${isPage(id) ? 'active' : ''}">${icon} ${label}</a>`;
     const mi = (action, label, cls) => `<div class="mi ${cls || ''}" data-action="${action}">${label}</div>`;
-    const MAX = 12;
-    const sheets = state.lists.slice(0, MAX);
-    nav.innerHTML = `
-      <div class="nav-sec">📄 Sheets</div>
+    const group = (key, icon, label, body, extra) => `
+      <div class="grp ${state.groups[key] ? 'open' : ''}" data-grp="${key}">
+        <div class="grp-h">${icon} <span>${label}</span>${extra || ''}<span class="chev">▸</span></div>
+        <div class="grp-b">${body}</div>
+      </div>`;
+    const MAX = 10;
+    const sheetsBody = `
       ${page('sheets', '📂', 'All sheets')}
-      ${mi('upload', '＋ Upload sheet (CSV / XLSX)')}
-      ${sheets.map((l) => `<a href="#/list/${l.id}" class="sheet ${name === 'list' && Number(args[0]) === l.id ? 'active' : (cur && cur.id === l.id ? 'selected' : '')}" title="${esc(l.name)}">${l.pending_tasks ? '<span class="dot"></span>' : '<span class="dot off"></span>'}<span class="n">${esc(l.name)}</span><small>${num(l.row_count)}</small></a>`).join('')}
-      ${state.lists.length > MAX ? `<a href="#/sheets" class="more">… ${state.lists.length - MAX} more</a>` : ''}
-      <div class="nav-sec menu">📧 Email Verifier menu <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:500">— runs on the selected sheet</span></div>
-      <div class="mi ${isAdmin() ? '' : 'locked'}" data-action="toggle-verify">${isAdmin() ? '✉️ Verify Account Emails' : '✉️ Verify Account Emails (Locked by Reachoutly 🔒)'}<span class="chev">${state.verifyOpen ? '▼' : '▶'}</span></div>
-      <div class="sub ${state.verifyOpen ? 'open' : ''}">${accounts.length ? accounts.map((a) => mi('verify:' + a.name, `Verify ${esc(cap(a.name))}<small>${a.ok ? 'D: ' + num(a.daily) + ' | I: ' + num(a.instant) : 'N/A'}</small>`)).join('') : '<div class="mi locked">No API accounts configured</div>'}</div>
-      <div class="sep"></div>
-      ${mi('llc', `🚀 Lead List Clean <small style="color:var(--dim)">(Total D: ${num(cr.totalDaily)})</small>`)}
-      ${mi('check-pending', '🔄 Check Pending Results')}
-      ${mi('clear-pending', '🗑️ Clear All Pending Tasks')}
-      <div class="sep"></div>
-      ${mi('decision-makers', '🧹 Clean Decision Makers')}
-      <div class="sep"></div>
-      ${mi('cc-start', '🔄 Start Cleaning Company Names')}
-      ${mi('cc-progress', '🧐 Check Cleaning Progress')}
-      ${mi('cc-reset', '🗑️ Reset Cleaning Progress')}
-      <div class="sep"></div>
-      ${mi('show-credits', '🔃 Refresh & Show All Credits')}
-      ${mi('help', '📖 Guideline / Help')}
-      <div class="nav-sec">📊 Log</div>
-      ${page('activity', '📋', isAdmin() ? 'info — Activity Log (all users)' : 'info — My Activity')}
-      ${isAdmin() ? `<div class="nav-sec">Admin</div>${page('users', '👥', 'Users')}${page('settings', '🔑', 'API Keys & Settings')}${mi('debug-credits', '🔍 Debug Credit Balance')}` : ''}
-      <div class="nav-sec">Account</div>
-      ${page('account', '👤', 'My Account')}`;
+      ${mi('upload', '＋ Upload sheet')}
+      ${state.lists.slice(0, MAX).map((l) => `<a href="#/list/${l.id}" class="sheet ${name === 'list' && Number(args[0]) === l.id ? 'active' : (cur && cur.id === l.id ? 'selected' : '')}" title="${esc(l.name)}">${l.pending_tasks ? '<span class="dot"></span>' : '<span class="dot off"></span>'}<span class="n">${esc(l.name)}</span><small>${num(l.row_count)}</small></a>`).join('')}
+      ${state.lists.length > MAX ? `<a href="#/sheets" class="more">… ${state.lists.length - MAX} more</a>` : ''}`;
+    nav.innerHTML = `
+      ${page('overview', '🏠', 'Overview', 'top')}
+      ${group('sheets', '📄', 'Sheets', sheetsBody, `<small>${state.lists.length}</small>`)}
+      ${group('verify', '✉️', 'Email Verification', `
+        ${mi('llc', `🚀 Lead List Clean <small>(Total D: ${num(cr.totalDaily)})</small>`)}
+        ${mi('check-pending', '🔄 Check Pending Results')}
+        ${mi('clear-pending', '🗑️ Clear All Pending Tasks')}`)}
+      ${group('dm', '🧹', 'Decision Makers', mi('decision-makers', '🧹 Clean Decision Makers'))}
+      ${group('cc', '🤖', 'Company Names', `
+        ${mi('cc-start', '🔄 Start Cleaning Company Names')}
+        ${mi('cc-progress', '🧐 Check Cleaning Progress')}
+        ${mi('cc-reset', '🗑️ Reset Cleaning Progress')}`)}
+      ${page('activity', '📋', isAdmin() ? 'Activity Log (info)' : 'My Activity (info)', 'top')}
+      ${isAdmin() ? group('admin', '⚙️', 'Admin', `
+        ${page('users', '👥', 'Users')}
+        ${page('settings', '🔑', 'API Keys & Settings')}
+        ${mi('debug-credits', '🔍 Debug Credit Balance')}`) : ''}
+      ${group('account', '👤', 'Account', `
+        ${page('account', '👤', 'My Account')}
+        ${mi('help', '📖 Guideline / Help')}
+        ${mi('logout', '🚪 Logout')}`)}`;
+    $$('.grp-h', nav).forEach((h) => h.onclick = () => {
+      const key = h.parentElement.dataset.grp;
+      state.groups[key] = !state.groups[key];
+      try { localStorage.setItem('evd.groups', JSON.stringify(state.groups)); } catch (e) { /* ignore */ }
+      h.parentElement.classList.toggle('open', state.groups[key]);
+    });
     $$('.mi', nav).forEach((el) => el.onclick = () => {
-      if (el.dataset.action === 'toggle-verify') { state.verifyOpen = !state.verifyOpen; renderNav(); return; }
       if (!el.dataset.action) return;
       $('#sidebar').classList.remove('open');
       runAction(el.dataset.action).catch((err) => uiAlert('❌ ' + err.message));
@@ -265,10 +274,11 @@
       case 'help': return uiHtmlDialog('GuidelineDialog', '📖 Guideline & Help', 600, 500);
       case 'debug-credits': { uiBusy('🔍 Debug Credit Balance', 'Calling the Reoon API for every account…'); const r = await api('/verify/debug-credits'); return uiAlert(r.message, '🔍 Reoon API Raw Response'); }
       case 'upload': return uploadList();
+      case 'logout': await api('/auth/logout', { method: 'POST' }); state.user = null; location.hash = ''; render(); return;
       default: return;
     }
   }
-  const refreshCurrentView = async () => { await loadLists(); refreshActiveSelect(); const v = routes[parseHash().name] || 'sheets'; if (v === 'sheet' || v === 'sheets' || v === 'activity') views[v](parseHash().args).catch(() => {}); };
+  const refreshCurrentView = async () => { await loadLists(); refreshActiveSelect(); const v = routes[parseHash().name] || 'overview'; if (v === 'sheet' || v === 'sheets' || v === 'activity' || v === 'overview') views[v](parseHash().args).catch(() => {}); };
 
   // ✉️ Verify Account Emails → verifyEmails(tabName)
   async function verifyAccount(account) {
@@ -390,6 +400,38 @@
     return 'c-' + s.replace(/[^a-z_]/g, '');
   };
   const kindBadge = (k) => ({ upload: '<span class="badge gray">upload</span>', decision_makers: '<span class="badge blue">decision makers</span>', company_clean: '<span class="badge">company clean</span>' }[k] || esc(k));
+
+  views.overview = async () => {
+    setTitle('Overview');
+    const c = $('#content'); c.innerHTML = '<div class="empty">Loading…</div>';
+    const [pending, act] = await Promise.all([api('/verify/pending'), api('/activity?limit=8')]);
+    if (!state.credits) await loadCredits(false);
+    const cr = state.credits || { accounts: [], totalDaily: 0, totalInstant: 0 };
+    const cur = activeList();
+    const totalRows = state.lists.reduce((a, l) => a + l.row_count, 0);
+    c.innerHTML = `
+      <div class="grid grid-4" style="margin-bottom:16px">
+        <div class="stat"><div class="lbl">Total Daily Credits</div><div class="val green">${num(cr.totalDaily)}</div><div class="sub">${cr.accounts.filter((a) => a.enabled).length} active account(s)</div></div>
+        <div class="stat"><div class="lbl">Total Instant Credits</div><div class="val blue">${num(cr.totalInstant)}</div><div class="sub">Lead List Clean uses daily only</div></div>
+        <div class="stat"><div class="lbl">Sheets</div><div class="val">${num(state.lists.length)}</div><div class="sub">${num(totalRows)} rows total</div></div>
+        <div class="stat"><div class="lbl">Pending Tasks</div><div class="val ${pending.tasks.length ? 'amber' : ''}">${num(pending.tasks.length)}</div><div class="sub">checked every minute</div></div>
+      </div>
+      <div class="card"><h3>✉️ Verify Account Emails ${isAdmin() ? '' : '<span class="badge gray">Locked by Reachoutly 🔒</span>'}
+        <span class="right"><button class="btn sm" data-run="show-credits">🔃 Refresh & Show All Credits</button></span></h3>
+        <div class="hint" style="margin-bottom:10px">${cur ? `Selected sheet: <b>${esc(cur.name)}</b>` : 'No sheet selected — open one under <b>Sheets</b> first.'} · Verifies every unverified email of the selected sheet with ONE account (may use its instant credits too).</div>
+        <div class="tbl-wrap"><table class="t"><thead><tr><th>Account</th><th>Daily</th><th>Instant</th><th>Status</th><th></th></tr></thead><tbody>
+          ${cr.accounts.length ? cr.accounts.map((a) => `<tr><td><b>${esc(cap(a.name))}</b></td><td style="color:var(--green);font-weight:600">${num(a.daily)}</td><td>${num(a.instant)}</td>
+            <td>${!a.enabled ? '<span class="badge gray">disabled</span>' : a.ok ? '<span class="badge green">ok</span>' : '<span class="badge red">⚠️ unable to fetch</span>'}</td>
+            <td style="text-align:right">${a.enabled ? `<button class="btn sm ${isAdmin() ? 'success' : 'ghost'}" data-run="verify:${esc(a.name)}">${isAdmin() ? '✉️ Verify ' + esc(cap(a.name)) : '🔒 Verify ' + esc(cap(a.name))}</button>` : ''}</td></tr>`).join('')
+          : `<tr><td colspan="5" class="empty">No API accounts configured${isAdmin() ? ' — add them in Admin → API Keys & Settings.' : '. Ask your admin.'}</td></tr>`}
+        </tbody></table></div>
+      </div>
+      <div class="grid grid-2">
+        <div class="card"><h3>⏳ Pending verification tasks <span class="right"><button class="btn sm" data-run="check-pending">🔄 Check Pending Results</button></span></h3>${pendingTable(pending.tasks)}</div>
+        <div class="card"><h3>📋 Recent activity <span class="right"><a class="btn sm ghost" href="#/activity">View all →</a></span></h3>${activityTable(act.rows, true)}</div>
+      </div>`;
+    $$('[data-run]', c).forEach((b) => b.onclick = () => runAction(b.dataset.run).catch((e) => uiAlert('❌ ' + e.message)));
+  };
 
   function pendingTable(tasks) {
     if (!tasks.length) return '<div class="empty" style="padding:10px">✅ No pending verification tasks.</div>';

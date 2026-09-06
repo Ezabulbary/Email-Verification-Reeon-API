@@ -42,6 +42,7 @@ router.get('/dialogs/:name', auth.requireAuth, (req, res) => {
   if (!fs.existsSync(file)) return res.status(404).send('Dialog not found');
   let html = fs.readFileSync(file, 'utf8');
   html = html.replace(/<head>/i, '<head>\n<script src="/gas-shim.js"></script>');
+  html = html.replace(/<\/head>/i, '<link rel="stylesheet" href="/dialog-light.css">\n</head>'); // light theme override
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(html);
 });

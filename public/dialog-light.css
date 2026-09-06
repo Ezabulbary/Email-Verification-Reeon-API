@@ -1,0 +1,43 @@
+/* Light-theme override for the ORIGINAL Apps Script dialogs (decision_maker.html, GuidelineDialog.html).
+   The dialog files themselves are untouched — this sheet is injected when they are served. */
+body{background:#fff!important;color:#111827!important;}
+::-webkit-scrollbar-thumb,.opt-list::-webkit-scrollbar-thumb,.dept-list::-webkit-scrollbar-thumb,#scrollArea::-webkit-scrollbar-thumb{background:#d1d5db!important;}
+::-webkit-scrollbar-track{background:#f3f4f6!important;}
+/* decision_maker.html */
+.card{background:#fff!important;border-color:#e5e7eb!important;box-shadow:0 1px 2px rgba(0,0,0,.04);}
+.card-header:hover{background:#f3f4f6!important;}
+.card-title{color:#0369a1!important;}
+.chevron,.dp-arrow,.search-wrap svg{color:#9ca3af!important;}
+.kw-box,.search-box,.add-row input,.pc-row input[type=number]{background:#fff!important;border-color:#d1d5db!important;color:#111827!important;}
+.kw-input{color:#111827!important;}
+.kw-input::placeholder,.search-box::placeholder,.add-row input::placeholder{color:#9ca3af!important;}
+.kw-tag,.atag{background:#e0e7ff!important;border-color:#a5b4fc!important;color:#3730a3!important;}
+.kw-tag .x,.atag .x{color:#4f46e5!important;}
+.kw-tag .x:hover,.atag .x:hover{color:#dc2626!important;}
+.suggest-label,.pc-row .hint,#topCount .tc-lbl{color:#6b7280!important;}
+.chip{background:#f3f4f6!important;border-color:#d1d5db!important;color:#374151!important;}
+.chip:hover{background:#e0e7ff!important;border-color:#a5b4fc!important;color:#3730a3!important;}
+.chip.highlight{background:#d1fae5!important;border-color:#10b981!important;color:#065f46!important;}
+.opt:hover,.dp:hover{background:#f3f4f6!important;}
+.opt.on{background:#e0e7ff!important;}
+.dp.has-sel{background:#eef2ff!important;}
+.cb,.dp-cb{border-color:#9ca3af!important;}
+.opt.on .cb,.dp.all-sel .dp-cb{background:#4f46e5!important;border-color:#4f46e5!important;}
+.dp.has-sel .dp-cb{border-color:#4f46e5!important;}
+.opt-lbl,.dp-name,.pc-row label{color:#374151!important;}
+.opt.on .opt-lbl,.dp.has-sel .dp-name{color:#111827!important;}
+.no-res,.empty-hint,#topCount .tc-num.loading{color:#9ca3af!important;}
+.dp-cnt{background:#e0e7ff!important;color:#4f46e5!important;}
+.dc{border-left-color:#e5e7eb!important;}
+#tagsBar,#topCount,.footer{background:#f9fafb!important;border-color:#e5e7eb!important;}
+#topCount .tc-num{color:#0369a1!important;}
+.btn-clear{border-color:#d1d5db!important;color:#6b7280!important;background:#fff!important;}
+.btn-clear:hover{border-color:#dc2626!important;color:#dc2626!important;}
+/* GuidelineDialog.html */
+h2{color:#111827!important;border-bottom-color:#e5e7eb!important;}
+.section{background:#f9fafb!important;border-color:#e5e7eb!important;}
+.section-title{color:#0369a1!important;}
+.highlight{color:#1d4ed8!important;}
+.warning{color:#b91c1c!important;}
+.success{color:#15803d!important;}
+.footer{border-top-color:#e5e7eb!important;}
