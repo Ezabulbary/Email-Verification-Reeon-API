@@ -95,6 +95,22 @@
     });
   }
 
+  // ── Password show / hide toggle (applies to every input[type=password]) ───
+  function enhancePasswordInputs(root) {
+    $$('input[type=password]', root || document).forEach((inp) => {
+      if (inp.dataset.pw) return;
+      inp.dataset.pw = '1';
+      const wrap = document.createElement('div'); wrap.className = 'pw-wrap';
+      inp.parentNode.insertBefore(wrap, inp); wrap.appendChild(inp);
+      const btn = document.createElement('button');
+      btn.type = 'button'; btn.className = 'pw-toggle'; btn.title = 'Show / hide'; btn.setAttribute('aria-label', 'Show or hide password');
+      btn.innerHTML = '👁';
+      btn.onclick = () => { const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; btn.innerHTML = show ? '🙈' : '👁'; btn.classList.toggle('on', show); inp.focus(); };
+      wrap.appendChild(btn);
+    });
+  }
+  new MutationObserver(() => enhancePasswordInputs(document)).observe(document.documentElement, { childList: true, subtree: true });
+
   // ── State / routing ────────────────────────────────────────────────────────
   const state = { user: null, credits: null, lists: [], activeId: null, verifyOpen: false };
   const PAGE = 200;
@@ -501,7 +517,7 @@
       $('#u-add').onclick = async () => {
         const r = await uiForm('Add user', [
           { name: 'email', label: 'Email', type: 'email', required: true }, { name: 'name', label: 'Name' },
-          { name: 'password', label: 'Password (min 6 chars)', required: true },
+          { name: 'password', label: 'Password (min 6 chars)', type: 'password', required: true },
           { name: 'role', label: 'Role', type: 'select', value: 'user', options: [{ value: 'user', label: 'User' }, { value: 'admin', label: 'Admin' }] }
         ], 'Create');
         if (r) { try { await api('/users', { method: 'POST', body: r }); toast('User created', 'ok'); } catch (e) { toast(e.message, 'err'); } }
@@ -515,7 +531,7 @@
       });
       $$('[data-pw]').forEach((b) => b.onclick = async () => {
         const u = users.find((x) => x.id === Number(b.dataset.pw));
-        const r = await uiForm('Reset password — ' + u.email, [{ name: 'password', label: 'New password (min 6 chars)', required: true }], 'Reset');
+        const r = await uiForm('Reset password — ' + u.email, [{ name: 'password', label: 'New password (min 6 chars)', type: 'password', required: true }], 'Reset');
         if (r) { try { await api('/users/' + u.id, { method: 'PATCH', body: { password: r.password } }); toast('Password reset', 'ok'); } catch (e) { toast(e.message, 'err'); } }
         draw();
       });
@@ -553,13 +569,13 @@
           </form></div>
         <div class="card"><h3>ℹ️ Runtime</h3><div class="hint">Reoon API base: <code>${esc(s.reoonApiBase)}</code> · background result poll every <b>${s.pollIntervalSeconds}s</b> (the 1-minute trigger) · credits refresh every 10 min · change in <code>.env</code> and restart.</div></div>`;
       $('#k-add').onclick = async () => {
-        const r = await uiForm('Add Reoon account', [{ name: 'name', label: 'Account name (e.g. emailastrallc)', required: true }, { name: 'apiKey', label: 'Reoon API key', required: true }], 'Add');
+        const r = await uiForm('Add Reoon account', [{ name: 'name', label: 'Account name (e.g. emailastrallc)', required: true }, { name: 'apiKey', label: 'Reoon API key', type: 'password', required: true }], 'Add');
         if (r) { try { const res = await api('/settings/accounts', { method: 'POST', body: r }); toast(res.warning || `Added — Daily: ${res.balance.daily} | Instant: ${res.balance.instant}`, res.warning ? 'err' : 'ok'); loadCredits(false); } catch (e) { toast(e.message, 'err'); } }
         draw();
       };
       $$('[data-key]').forEach((b) => b.onclick = async () => {
         const a = s.accounts.find((x) => x.id === Number(b.dataset.key));
-        const r = await uiForm('Change key — ' + a.name, [{ name: 'apiKey', label: 'New Reoon API key', required: true }]);
+        const r = await uiForm('Change key — ' + a.name, [{ name: 'apiKey', label: 'New Reoon API key', type: 'password', required: true }]);
         if (r) { try { const res = await api('/settings/accounts/' + a.id, { method: 'PATCH', body: r }); toast(res.balance ? `Saved — Daily: ${res.balance.daily} | Instant: ${res.balance.instant}` : 'Saved, but balance check failed — verify the key.', res.balance ? 'ok' : 'err'); loadCredits(false); } catch (e) { toast(e.message, 'err'); } }
         draw();
       });
