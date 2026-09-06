@@ -1,5 +1,5 @@
 // =============================================================================
-//  gas.js — google.script.run bridge for the original Apps Script dialogs
+//  gas.js - google.script.run bridge for the original Apps Script dialogs
 //  POST /api/gas/:fn  { listId, args:[...] }  →  { result }
 // =============================================================================
 const express = require('express');

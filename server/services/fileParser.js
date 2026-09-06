@@ -1,5 +1,5 @@
 // =============================================================================
-//  fileParser.js — CSV / XLSX import & export
+//  fileParser.js - CSV / XLSX import & export
 // =============================================================================
 const path = require('path');
 const { parse } = require('csv-parse/sync');
@@ -25,7 +25,7 @@ async function parseUpload(buffer, filename) {
   let table = [];
 
   if (ext === '.xlsx' || ext === '.xlsm' || ext === '.xls') {
-    if (ext === '.xls') throw new Error('Legacy .xls is not supported — please save the file as .xlsx or .csv.');
+    if (ext === '.xls') throw new Error('Legacy .xls is not supported - please save the file as .xlsx or .csv.');
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(buffer);
     const ws = wb.worksheets[0];

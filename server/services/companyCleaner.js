@@ -1,11 +1,11 @@
 // =============================================================================
-//  companyCleaner.js — port of CompanyNameCleaner.gs (OpenAI GPT batch cleaning)
+//  companyCleaner.js - port of CompanyNameCleaner.gs (OpenAI GPT batch cleaning)
 //
 //  startCleaning  → copies the list to "[user email], the company name cleaning",
 //                   adds "Clean Company Name" column, starts a background job
 //  runJob         → batches of 100 rows → GPT → postClean → write (background)
-//  getProgress    → "🧐 Check Cleaning Progress"
-//  reset          → "🗑️ Reset Cleaning Progress"
+//  getProgress    → "Check Cleaning Progress"
+//  reset          → "Reset Cleaning Progress"
 // =============================================================================
 const config = require('../config');
 const { db, getSetting } = require('../db');
@@ -95,7 +95,7 @@ function startCleaning(user, listId, overwrite) {
   }
 
   const companyCol = source.columns.findIndex((h) => /^(company|company name)$/i.test(String(h).trim()));
-  if (companyCol === -1) return { ok: false, message: '❌ "Company" or "Company Name" column not found.' };
+  if (companyCol === -1) return { ok: false, message: '"Company" or "Company Name" column not found.' };
 
   if (existing) lists.deleteList(existing.id);
 
@@ -115,7 +115,7 @@ function startCleaning(user, listId, overwrite) {
   const websiteCol = target.columns.findIndex((h) => /website/i.test(String(h)));
 
   const activityId = activity.logActivity({
-    user, fn: 'Company Name Cleaner', list: source, taskName: 'Company Clean — ' + source.name,
+    user, fn: 'Company Name Cleaner', list: source, taskName: 'Company Clean - ' + source.name,
     status: 'started', total: Math.max(rows.length, 0), progress: '0%', action: 'running'
   });
 
@@ -126,11 +126,11 @@ function startCleaning(user, listId, overwrite) {
 
   runJob(jobId); // background
 
-  return { ok: true, jobId, listId: newId, message: `🚀 Created target tab: "${newName}"\n\nStarting high-speed cleaning process...` };
+  return { ok: true, jobId, listId: newId, message: `Created target tab: "${newName}"\n\nStarting high-speed cleaning process...` };
 }
 
 // =============================================================================
-//  RUN (background) — like cleanCompanyNames(), but no 6-minute limit
+//  RUN (background) - like cleanCompanyNames(), but no 6-minute limit
 // =============================================================================
 async function runJob(jobId) {
   if (running.has(jobId)) return;
@@ -201,7 +201,7 @@ async function runJob(jobId) {
       updateJob(jobId, { last_processed_row: lastRow, processed });
       const pct = totalRows ? Math.round(((lastRow + 1) / totalRows) * 100) : 100;
       if (job.activity_id) activity.updateById(job.activity_id, { progress: pct + '%', status: 'running' });
-      console.log(`🤖 Company clean job #${jobId}: processed batch, last row ${lastRow + 1}/${totalRows}`);
+      console.log(`Company clean job #${jobId}: processed batch, last row ${lastRow + 1}/${totalRows}`);
     }
   } finally {
     running.delete(jobId);
@@ -229,9 +229,9 @@ function resumeJobs() {
 // =============================================================================
 function getProgress(user) {
   const job = latestJobForUser(user.id);
-  if (!job) return { ok: true, active: false, message: 'ℹ️ No active cleaning process found.\nClick "Start Cleaning Company Names" to begin.' };
+  if (!job) return { ok: true, active: false, message: 'No active cleaning process found.\nClick "Start Cleaning Company Names" to begin.' };
   const list = lists.getList(job.list_id);
-  if (!list) return { ok: true, active: false, message: 'ℹ️ The cleaning tab was deleted.' };
+  if (!list) return { ok: true, active: false, message: 'The cleaning tab was deleted.' };
 
   const rows = lists.getRows(job.list_id);
   let emptyCount = 0;
@@ -244,27 +244,27 @@ function getProgress(user) {
   const processed = total - emptyCount;
   const pct = total ? Math.round((processed / total) * 100) : 100;
   const statusLine = {
-    running: '⚡ Background batch job is active.',
-    completed: '🎉 All company names have been cleaned successfully!',
-    stopped: '⏹ Cleaning was reset/stopped.',
-    error: '❌ Error: ' + (job.error || 'unknown')
+    running: 'Background batch job is active.',
+    completed: 'All company names have been cleaned successfully!',
+    stopped: 'Cleaning was reset/stopped.',
+    error: 'Error: ' + (job.error || 'unknown')
   }[job.status] || job.status;
 
   // Same final alerts as cleanCompanyNames() in the sheet
   const doneMessage = job.status === 'completed'
-    ? '🎉 Success!\n\nAll company names have been cleaned successfully in the new tab!'
-    : job.status === 'error' ? '❌ ' + (job.error || 'Cleaning stopped with an error.')
-    : job.status === 'stopped' ? '♻️ Cleaning was reset.' : null;
+    ? 'Success!\n\nAll company names have been cleaned successfully in the new tab!'
+    : job.status === 'error' ? '' + (job.error || 'Cleaning stopped with an error.')
+    : job.status === 'stopped' ? 'Cleaning was reset.' : null;
   return {
     ok: true, active: job.status === 'running', status: job.status, listId: job.list_id, listName: list.name,
     processed, total, remaining: emptyCount, percent: pct, error: job.error, doneMessage,
     message: [
-      '📊 Company Names Cleaning Progress',
+      'Company Names Cleaning Progress',
       '══════════════════════════════════',
-      `📁 Cleaning Sheet     : ${list.name}`,
-      `📈 Last Processed Row : Row ${job.last_processed_row + 2}`,
-      `✅ Cleaned Rows       : ${processed} / ${total} (${pct}%)`,
-      `⏳ Remaining Rows     : ${emptyCount}`,
+      `Cleaning Sheet     : ${list.name}`,
+      `Last Processed Row : Row ${job.last_processed_row + 2}`,
+      `Cleaned Rows       : ${processed} / ${total} (${pct}%)`,
+      `Remaining Rows     : ${emptyCount}`,
       '',
       statusLine
     ].join('\n')
@@ -273,7 +273,7 @@ function getProgress(user) {
 
 function reset(user) {
   const res = db.prepare("UPDATE clean_jobs SET status = 'stopped', updated_at = datetime('now') WHERE user_id = ? AND status = 'running'").run(user.id);
-  return { ok: true, stopped: res.changes, message: '♻️ Cleaning progress reset. You can start the process fresh again.' };
+  return { ok: true, stopped: res.changes, message: 'Cleaning progress reset. You can start the process fresh again.' };
 }
 
 module.exports = { startCleaning, runJob, resumeJobs, getProgress, reset, postCleanCompanyName };

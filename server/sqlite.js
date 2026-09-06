@@ -1,5 +1,5 @@
 // =============================================================================
-//  sqlite.js — thin wrapper over Node's built-in `node:sqlite` (no native build
+//  sqlite.js - thin wrapper over Node's built-in `node:sqlite` (no native build
 //  step, works on Windows without Visual Studio). Exposes the small subset of the
 //  better-sqlite3 API the app uses: prepare().run/get/all, exec, pragma, transaction.
 //  Requires Node.js 22.13+ (or 24+).
@@ -8,11 +8,11 @@ let DatabaseSync;
 try {
   ({ DatabaseSync } = require('node:sqlite'));
 } catch (e) {
-  console.error('\n❌ This app needs Node.js 22.13 or newer (built-in SQLite). You are running ' + process.version + '.\n');
+  console.error('\nThis app needs Node.js 22.13 or newer (built-in SQLite). You are running ' + process.version + '.\n');
   process.exit(1);
 }
 
-// node:sqlite refuses undefined / boolean bindings — normalise them.
+// node:sqlite refuses undefined / boolean bindings - normalise them.
 function fix(v) {
   if (v === undefined) return null;
   if (typeof v === 'boolean') return v ? 1 : 0;

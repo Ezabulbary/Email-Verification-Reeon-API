@@ -1,5 +1,5 @@
 /* Light-theme override for the ORIGINAL Apps Script dialogs (decision_maker.html, GuidelineDialog.html).
-   The dialog files themselves are untouched — this sheet is injected when they are served. */
+   The dialog files themselves are untouched; this sheet is injected when they are served. */
 body{background:#fff!important;color:#111827!important;}
 ::-webkit-scrollbar-thumb,.opt-list::-webkit-scrollbar-thumb,.dept-list::-webkit-scrollbar-thumb,#scrollArea::-webkit-scrollbar-thumb{background:#d1d5db!important;}
 ::-webkit-scrollbar-track{background:#f3f4f6!important;}

@@ -1,4 +1,4 @@
-// Admin only — Reoon API accounts + OpenAI settings
+// Admin only - Reoon API accounts + OpenAI settings
 const express = require('express');
 const { db, getSetting, setSetting } = require('../db');
 const auth = require('../auth');
@@ -36,7 +36,7 @@ router.post('/accounts', async (req, res) => {
   const info = db.prepare('INSERT INTO api_accounts (name, api_key, sort_order) VALUES (?, ?, ?)').run(name, apiKey, order);
   const acc = db.prepare('SELECT * FROM api_accounts WHERE id = ?').get(info.lastInsertRowid);
   const bal = await reoon.getCreditBalance(acc, true);
-  res.json({ ok: true, id: acc.id, balance: bal, warning: bal ? null : 'Account saved, but the balance check failed — verify the key.' });
+  res.json({ ok: true, id: acc.id, balance: bal, warning: bal ? null : 'Account saved, but the balance check failed - verify the key.' });
 });
 
 router.patch('/accounts/:id', async (req, res) => {

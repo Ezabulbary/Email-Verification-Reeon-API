@@ -1,5 +1,5 @@
 /* =============================================================================
-   Email Verifier Dashboard — sidebar layout (dark theme, matches the Sheets dialogs)
+   Email Verifier Dashboard: sidebar layout, light theme
    ========================================================================== */
 :root {
   --bg: #f3f4f6; --panel: #ffffff; --panel2: #eef2ff; --border: #e5e7eb; --border2: #d1d5db;
@@ -54,7 +54,7 @@ button { font-family: inherit; }
 .topbar .credits-pill { font-size: 12px; color: var(--muted); background: var(--panel); border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; white-space: nowrap; }
 .topbar .credits-pill b { color: var(--green); }
 .content { padding: 22px 24px 40px; max-width: 1500px; width: 100%; }
-.menu-btn { display: none; }
+.btn.menu-btn { display: none; }
 
 /* ── Cards / stats ── */
 .card { background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
@@ -154,7 +154,7 @@ pre.summary { background: var(--bg); border: 1px solid var(--border); border-rad
 @media (max-width: 900px) {
   .sidebar { position: fixed; left: 0; top: 0; transform: translateX(-100%); transition: transform .2s; z-index: 30; }
   .sidebar.open { transform: none; }
-  .menu-btn { display: inline-flex; }
+  .btn.menu-btn { display: inline-flex; }
   .content { padding: 16px 14px 40px; }
   .topbar { padding: 10px 14px; flex-wrap: wrap; }
   .topbar .credits-pill { display: none; }
@@ -216,3 +216,56 @@ pre.summary { background: var(--bg); border: 1px solid var(--border); border-rad
   table.t td, table.t th { padding: 7px 8px; }
   .toasts { left: 12px; right: 12px; max-width: none; }
 }
+
+/* ── Bottom user block with sub-buttons ── */
+.sidebar .me { display: block; padding: 10px 6px 0; }
+.sidebar .me .me-top { display: flex; align-items: center; gap: 8px; padding: 0 4px 6px; }
+.sidebar .me .me-top b { flex: 1; font-size: 12px; }
+.sidebar .me .me-links { display: flex; flex-direction: column; gap: 1px; }
+.sidebar .me .me-links a { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; color: var(--muted); font-size: 12px; font-weight: 500; }
+.sidebar .me .me-links a:hover { background: var(--panel2); color: var(--text); }
+.sidebar .me .me-links a.active { background: #e0e7ff; color: #3730a3; font-weight: 600; }
+.sidebar .me .me-links a#me-logout { color: var(--red); }
+
+/* ── Help page ── */
+.help p { color: var(--muted); margin-bottom: 6px; }
+.help ul { margin-left: 20px; } .help li { margin-bottom: 5px; color: var(--muted); line-height: 1.55; }
+.help .highlight { color: #1d4ed8; font-weight: 600; } .help .warning { color: #b91c1c; font-weight: 600; } .help .success { color: #15803d; font-weight: 600; }
+.help .card h3 { font-size: 13px; text-transform: none; letter-spacing: 0; }
+
+/* ── Inline icons ── */
+.ic { vertical-align: -3px; flex-shrink: 0; }
+.nav a .ic, .grp-h .ic { color: var(--dim); }
+.nav a.active .ic { color: #3730a3; }
+.nav a { gap: 9px; }
+.brand .logo, .login-card .logo { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 9px; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; margin-right: 2px; }
+.login-card h1 { gap: 10px; }
+.nav .mi .ic { color: var(--accent); }
+.pw-toggle .ic { vertical-align: middle; }
+
+/* ── Bottom user button + menu ── */
+.sidebar .me { position: relative; padding: 8px 4px 0; }
+.me-btn { width: 100%; display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; cursor: pointer; text-align: left; font-family: inherit; }
+.me-btn:hover, .me.open .me-btn { border-color: #c7d2fe; background: #f5f7ff; }
+.me-btn .avatar { width: 30px; height: 30px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; }
+.me-btn .me-txt { min-width: 0; flex: 1; display: flex; flex-direction: column; line-height: 1.25; }
+.me-btn .me-txt b { font-size: 12px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.me-btn .me-txt small { font-size: 10.5px; color: var(--dim); }
+.me-btn .chev { color: var(--faint); transition: transform .15s; display: flex; }
+.me.open .me-btn .chev { transform: rotate(180deg); }
+.me-menu { position: absolute; left: 4px; right: 4px; bottom: calc(100% + 6px); background: #fff; border: 1px solid var(--border2); border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.12); padding: 6px; z-index: 5; }
+.me-item { width: 100%; display: flex; align-items: center; gap: 8px; background: none; border: none; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; font-weight: 600; color: var(--red); cursor: pointer; font-family: inherit; }
+.me-item:hover { background: #fef2f2; }
+
+/* ── Upload dialog ── */
+.dropzone { border: 2px dashed var(--border2); border-radius: 12px; padding: 26px 16px; text-align: center; cursor: pointer; background: #fafafa; transition: all .15s; outline: none; }
+.dropzone:hover, .dropzone:focus, .dropzone.drag { border-color: var(--accent); background: #f5f7ff; }
+.dropzone.has-file { border-style: solid; border-color: #a5b4fc; background: #f5f7ff; }
+.dz-icon { color: var(--accent); margin-bottom: 6px; }
+.dz-title { font-weight: 600; font-size: 14px; color: var(--text); }
+.dz-sub { color: var(--dim); font-size: 12px; margin-top: 3px; }
+.dz-sub b { color: var(--accent); }
+.dz-file { margin-top: 12px; display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12.5px; }
+.req { margin-top: 6px; background: #f9fafb; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
+.req-t { font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.req ul { margin-left: 18px; color: var(--muted); font-size: 12px; } .req li { margin-bottom: 3px; }

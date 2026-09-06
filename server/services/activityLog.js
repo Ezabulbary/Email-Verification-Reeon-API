@@ -1,5 +1,5 @@
 // =============================================================================
-//  activityLog.js — the "info" tab: every automation run by every user
+//  activityLog.js - the "info" tab: every automation run by every user
 //  Columns: User Email | Function | Sheet(List) | Task ID | API Account | Date |
 //           Task Name | Status | Total | Progress | Action
 // =============================================================================
@@ -13,13 +13,13 @@ const insert = db.prepare(`INSERT INTO activity
 function logTask(p) {
   const info = insert.run({
     user_id: p.user ? p.user.id : null,
-    user_email: p.user ? p.user.email : (p.userEmail || '—'),
-    fn: p.fn || '—',
+    user_email: p.user ? p.user.email : (p.userEmail || '-'),
+    fn: p.fn || '-',
     list_id: p.list ? p.list.id : (p.listId || null),
-    list_name: p.list ? p.list.name : (p.listName || '—'),
-    task_id: p.taskId || '—',
-    api_account: p.apiAccount || '—',
-    task_name: p.taskName || p.fn || '—',
+    list_name: p.list ? p.list.name : (p.listName || '-'),
+    task_id: p.taskId || '-',
+    api_account: p.apiAccount || '-',
+    task_name: p.taskName || p.fn || '-',
     status: p.status || 'submitted',
     total: p.total === undefined || p.total === null ? null : Number(p.total),
     progress: p.progress || '0%',
@@ -28,10 +28,10 @@ function logTask(p) {
   return Number(info.lastInsertRowid);
 }
 
-/** One-off activity (no task id) — Decision Maker Filter, Company Name Cleaner */
+/** One-off activity (no task id) - Decision Maker Filter, Company Name Cleaner */
 function logActivity(p) {
   return logTask(Object.assign({}, p, {
-    taskId: '—',
+    taskId: '-',
     status: p.status || 'completed',
     progress: p.progress || '100%',
     action: p.action || 'done'

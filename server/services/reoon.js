@@ -1,5 +1,5 @@
 // =============================================================================
-//  reoon.js — Reoon Email Verifier API client + credit balance cache
+//  reoon.js - Reoon Email Verifier API client + credit balance cache
 //  (port of getCreditBalance / llcGetDailyCredits / llcCreateBulkTask /
 //   llcFetchTaskResult / refreshCreditBalances from the Apps Script code)
 // =============================================================================

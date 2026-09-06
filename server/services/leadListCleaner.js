@@ -1,9 +1,9 @@
 // =============================================================================
-//  leadListCleaner.js — port of LeadListCleaner.gs + verifyEmails (Code.gs)
+//  leadListCleaner.js - port of LeadListCleaner.gs + verifyEmails (Code.gs)
 //
-//  • cleanLeadList   → "🚀 Lead List Clean": splits unverified emails across all
+//  • cleanLeadList   → "Lead List Clean": splits unverified emails across all
 //                       enabled Reoon accounts using DAILY credits only
-//  • verifyWithAccount → "✉️ Verify Account Emails" (admin only): one account,
+//  • verifyWithAccount → "Verify Account Emails" (admin only): one account,
 //                       daily + instant credits
 //  • checkPendingTaskResults → background / manual poll, writes results
 //  • clearAllPendingTasks
@@ -53,7 +53,7 @@ function collectUnverified(listId, emailCol, statusCol) {
 }
 
 // =============================================================================
-//  🚀 LEAD LIST CLEAN
+//  LEAD LIST CLEAN
 // =============================================================================
 async function cleanLeadList(user, listId) {
   const SCRIPT_START = Date.now();
@@ -63,8 +63,8 @@ async function cleanLeadList(user, listId) {
   const totalUnprocessed = pendingRows.length;
   if (totalUnprocessed === 0) {
     const running = pendingStatusTotalForList(listId);
-    let msg = '✅ All emails are already processed!';
-    if (running > 0) msg += `\n\n⏳ ${running} task(s) running in background.`;
+    let msg = 'All emails are already processed!';
+    if (running > 0) msg += `\n\n${running} task(s) running in background.`;
     return { ok: true, nothingToDo: true, message: msg };
   }
 
@@ -79,7 +79,7 @@ async function cleanLeadList(user, listId) {
     }
   }
   if (totalCredits === 0) {
-    return { ok: false, message: '❌ All accounts have exhausted their Daily Credits.\nPlease try again tomorrow.' };
+    return { ok: false, message: 'All accounts have exhausted their Daily Credits.\nPlease try again tomorrow.' };
   }
 
   // ── Split emails among accounts ──
@@ -117,10 +117,10 @@ async function cleanLeadList(user, listId) {
   }
 
   if (!successTasks.length) {
-    return { ok: false, message: '❌ No tasks could be created.\nFailed accounts: ' + failBatches.join(', ') };
+    return { ok: false, message: 'No tasks could be created.\nFailed accounts: ' + failBatches.join(', ') };
   }
 
-  // ── Aggressive in-script polling (every 10s, up to 100s) — same as the sheet ──
+  // ── Aggressive in-script polling (every 10s, up to 100s) - same as the sheet ──
   const stillPending = await aggressivePoll(successTasks.map((t) => t.taskId), SCRIPT_START);
 
   // Refresh cached balances for the used accounts (best effort, in background)
@@ -128,23 +128,23 @@ async function cleanLeadList(user, listId) {
 
   const completedCount = successTasks.length - stillPending.length;
   const lines = [
-    '📊 Lead List Clean — Summary',
+    'Lead List Clean - Summary',
     '══════════════════════════════════',
-    `📤 Total Submitted : ${emailsToProcess.length} emails (Daily Credits Only)`,
-    `✅ Completed Tasks : ${completedCount} task(s) (Sheet updated)`,
-    `⏳ In Progress Tasks: ${stillPending.length} task(s) (In trigger)`,
-    `🔁 Remaining Leads : ${remaining} email(s) (Will process in next run)`,
+    `Total Submitted : ${emailsToProcess.length} emails (Daily Credits Only)`,
+    `Completed Tasks : ${completedCount} task(s) (Sheet updated)`,
+    `In Progress Tasks: ${stillPending.length} task(s) (In trigger)`,
+    `Remaining Leads : ${remaining} email(s) (Will process in next run)`,
     '',
-    '📋 Detailed Accounts Usage:',
+    'Detailed Accounts Usage:',
     '──────────────────────────────────'
   ];
   successTasks.forEach((t) => {
     const isDone = stillPending.indexOf(t.taskId) === -1;
-    lines.push(`  • ${t.account}: ${t.leads} leads | Status: ${isDone ? '✅ Completed' : '⏳ In Progress'} | Task ID: ${t.taskId}`);
+    lines.push(`  • ${t.account}: ${t.leads} leads | Status: ${isDone ? 'Completed' : 'In Progress'} | Task ID: ${t.taskId}`);
   });
-  if (failBatches.length) { lines.push(''); lines.push('  ❌ Failed Accounts: ' + failBatches.join(', ')); }
-  if (stillPending.length) { lines.push(''); lines.push('⚡ Background trigger is checking progress every 1 minute.'); }
-  if (remaining > 0) lines.push(`▶ Remaining ${remaining} leads will be cleaned in the next run.`);
+  if (failBatches.length) { lines.push(''); lines.push('  Failed Accounts: ' + failBatches.join(', ')); }
+  if (stillPending.length) { lines.push(''); lines.push('Background trigger is checking progress every 1 minute.'); }
+  if (remaining > 0) lines.push(`Remaining ${remaining} leads will be cleaned in the next run.`);
 
   return { ok: true, message: lines.join('\n'), submitted: emailsToProcess.length, tasks: successTasks, completed: completedCount, inProgress: stillPending.length, remaining, failed: failBatches };
 }
@@ -172,7 +172,7 @@ async function aggressivePoll(taskIds, scriptStart) {
 }
 
 // =============================================================================
-//  ✉️ VERIFY ACCOUNT EMAILS (admin) — one account, daily + instant credits
+//  VERIFY ACCOUNT EMAILS (admin) - one account, daily + instant credits
 // =============================================================================
 async function verifyWithAccount(user, listId, accountName) {
   const account = reoon.getAccountByName(accountName);
@@ -198,20 +198,20 @@ async function verifyWithAccount(user, listId, accountName) {
   insertPending.run(user.id, listId, account.id, account.name, result.taskId, 'Verify Emails', emailCol, statusCol, dateCol, emailList.length);
   activity.logTask({
     user, fn: 'Verify Emails', list, taskId: result.taskId, apiAccount: account.name,
-    taskName: 'Individual Verify — ' + account.name, status: 'submitted', total: emailList.length, progress: '0%', action: 'polling'
+    taskName: 'Individual Verify - ' + account.name, status: 'submitted', total: emailList.length, progress: '0%', action: 'polling'
   });
   fastPoll([result.taskId]);
   reoon.getCreditBalance(account, true).catch(() => {});
 
   return {
     ok: true,
-    message: `✅ Verification task submitted!\n\n📧 Emails: ${emailList.length}\n🔑 Task ID: ${result.taskId}\n🏦 Account: ${account.name}\n\n⏳ Results will appear automatically within 1–5 minutes.`,
+    message: `Verification task submitted!\n\nEmails: ${emailList.length}\nTask ID: ${result.taskId}\nAccount: ${account.name}\n\nResults will appear automatically within 1–5 minutes.`,
     taskId: result.taskId, total: emailList.length
   };
 }
 
 // =============================================================================
-//  RESULT WRITER — scan "Pending..." rows and write status + date
+//  RESULT WRITER - scan "Pending..." rows and write status + date
 // =============================================================================
 function writeResultsToList(task, resultObj) {
   const list = lists.getList(task.list_id);
@@ -236,11 +236,11 @@ function writeResultsToList(task, resultObj) {
 }
 
 // =============================================================================
-//  POLL — background trigger equivalent (checkPendingTaskResults)
+//  POLL - background trigger equivalent (checkPendingTaskResults)
 // =============================================================================
 let polling = false;
 async function checkPendingTaskResults(user, opts = {}) {
-  if (polling && !opts.force) return { ok: true, message: '⏳ A poll is already running.', written: 0, remaining: getPendingTasks(user).length };
+  if (polling && !opts.force) return { ok: true, message: 'A poll is already running.', written: 0, remaining: getPendingTasks(user).length };
   polling = true;
   let totalWritten = 0;
   let remaining = 0;
@@ -248,19 +248,19 @@ async function checkPendingTaskResults(user, opts = {}) {
   try {
     const tasks = getPendingTasks(user);
     if (tasks.length === 0) {
-      // Recovery: no stored tasks — does the active sheet have orphan "Pending..." rows?
+      // Recovery: no stored tasks - does the active sheet have orphan "Pending..." rows?
       let orphanCount = 0;
       if (opts.listId) { try { orphanCount = lists.countPendingRows(opts.listId); } catch (e) { /* ignore */ } }
       return {
         ok: true, noTasks: true, orphanCount, written: 0, remaining: 0,
         message: orphanCount > 0
           ? orphanCount + ' row(s) have "Pending..." status but no active Task ID.\n\nClearing them will allow them to be processed again in the next run.\nDo you want to clear them?'
-          : '✅ No Pending Tasks found.'
+          : 'No Pending Tasks found.'
       };
     }
     for (const task of tasks) {
       if (!task.api_key) {
-        details.push(`${task.task_id}: account "${task.account}" no longer exists — skipped`);
+        details.push(`${task.task_id}: account "${task.account}" no longer exists - skipped`);
         remaining++;
         continue;
       }
@@ -282,14 +282,14 @@ async function checkPendingTaskResults(user, opts = {}) {
       totalWritten += written;
       activity.updateByTaskId(task.task_id, { status: 'completed', progress: '100%', action: 'done' });
       db.prepare('DELETE FROM pending_tasks WHERE id = ?').run(task.id);
-      details.push(`${task.task_id} (${task.account}): ✅ completed, ${written} row(s) written`);
+      details.push(`${task.task_id} (${task.account}): completed, ${written} row(s) written`);
     }
   } finally {
     polling = false;
   }
 
-  let msg = `✅ ${totalWritten} Email Result(s) written.`;
-  msg += remaining > 0 ? `\n⏳ ${remaining} task(s) still running.` : '\n🎉 All tasks completed!';
+  let msg = `${totalWritten} Email Result(s) written.`;
+  msg += remaining > 0 ? `\n${remaining} task(s) still running.` : '\nAll tasks completed!';
   if (details.length) msg += '\n\n' + details.join('\n');
   return { ok: true, message: msg, written: totalWritten, remaining, details };
 }
@@ -311,7 +311,7 @@ function clearAllPendingTasks(user) {
   const res = user.role === 'admin'
     ? db.prepare('DELETE FROM pending_tasks').run()
     : db.prepare('DELETE FROM pending_tasks WHERE user_id = ?').run(user.id);
-  return { ok: true, deleted: res.changes, message: `✅ ${res.changes} pending task(s) deleted successfully.` };
+  return { ok: true, deleted: res.changes, message: `${res.changes} pending task(s) deleted successfully.` };
 }
 
 module.exports = { cleanLeadList, verifyWithAccount, checkPendingTaskResults, clearAllPendingTasks, getPendingTasks, aggressivePoll };

@@ -1,5 +1,5 @@
 // =============================================================================
-//  workers.js — background intervals (replaces Apps Script time-based triggers)
+//  workers.js - background intervals (replaces Apps Script time-based triggers)
 //   • poll pending Reoon tasks every POLL_INTERVAL_SECONDS
 //   • refresh credit balances every 10 minutes
 //   • resume company-cleaning jobs on start
@@ -16,7 +16,7 @@ function start() {
       const n = db.prepare('SELECT COUNT(*) AS c FROM pending_tasks').get().c;
       if (n > 0) {
         const r = await leadListCleaner.checkPendingTaskResults(null);
-        if (r.written) console.log(`⏱ Poll: ${r.written} result(s) written, ${r.remaining} task(s) pending.`);
+        if (r.written) console.log(`Poll: ${r.written} result(s) written, ${r.remaining} task(s) pending.`);
       }
     } catch (e) { console.log('Poll error: ' + e.message); }
   }, config.pollIntervalSeconds * 1000).unref();

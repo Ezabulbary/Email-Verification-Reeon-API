@@ -104,7 +104,7 @@ router.post('/:id/clear-pending-rows', loadList, (req, res) => {
     return res.status(400).json({ error: `${active} task(s) are still active for this list. Use "Check Pending Results" first, or force clear.` });
   }
   const n = lists.clearPendingRows(req.list.id);
-  res.json({ ok: true, cleared: n, message: `✅ ${n} row(s) cleared.\nRun "Lead List Clean" now.` });
+  res.json({ ok: true, cleared: n, message: `${n} row(s) cleared.\nRun "Lead List Clean" now.` });
 });
 
 module.exports = router;

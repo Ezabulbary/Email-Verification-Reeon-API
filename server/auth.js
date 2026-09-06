@@ -1,5 +1,5 @@
 // =============================================================================
-//  auth.js — cookie sessions, login rate limiting, role guards
+//  auth.js - cookie sessions, login rate limiting, role guards
 // =============================================================================
 const cookieSession = require('cookie-session');
 const bcrypt = require('bcryptjs');
@@ -32,7 +32,7 @@ function requireAuth(req, res, next) {
 function requireAdmin(req, res, next) {
   if (!req.user) return res.status(401).json({ error: 'Not logged in' });
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: '🔒 Access Denied — this option is available to admins only.' });
+    return res.status(403).json({ error: 'Access Denied - this option is available to admins only.' });
   }
   next();
 }

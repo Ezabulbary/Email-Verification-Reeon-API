@@ -1,4 +1,4 @@
-// Admin only — user management
+// Admin only - user management
 const express = require('express');
 const { db } = require('../db');
 const auth = require('../auth');

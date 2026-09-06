@@ -1,4 +1,4 @@
-# 📧 Email Verification Dashboard — Reoon API (Admin + User roles)
+# 📧 Email Verification Dashboard - Reoon API (Admin + User roles)
 
 A standalone web dashboard (Node.js + Express + SQLite) that runs the same tools as the
 Google Sheets automation, without Google Sheets:
@@ -46,7 +46,7 @@ job cannot be started twice by accident. The original `decision_maker.html` and
 
 ## 🚀 Setup (5 minutes)
 
-Requirements: **Node.js 22.13 or newer** (Node 24 recommended). No build tools / Visual Studio needed — the database uses Node's built-in SQLite.
+Requirements: **Node.js 22.13 or newer** (Node 24 recommended). No build tools / Visual Studio needed - the database uses Node's built-in SQLite.
 
 ```bash
 # 1. install dependencies
@@ -71,11 +71,11 @@ npm run create-admin -- admin@example.com StrongPassword "Admin Name"
 
 ### API keys
 
-* **Reoon accounts** — either put them in `.env` as `API_KEY_<name>=...` (same names as the
+* **Reoon accounts** - either put them in `.env` as `API_KEY_<name>=...` (same names as the
   sheet tabs: `emailastrallc`, `emranhossain`, `alimranshourov`, `aminsohel`, `amin`,
   `support`, `tool`) before the first start, **or** add/edit them any time in
   **Admin → API Keys & Settings**. Accounts can be enabled/disabled individually.
-* **OpenAI** — `CHATGPT_API_KEY` in `.env` or **Admin → API Keys & Settings**. The model
+* **OpenAI** - `CHATGPT_API_KEY` in `.env` or **Admin → API Keys & Settings**. The model
   defaults to `gpt-4o-mini` (the sheet version used `gpt-3.5-turbo`; change it in Settings).
 
 All data (users, keys, lists, activity) lives in `data/dashboard.sqlite`. Back up the
@@ -113,7 +113,7 @@ public/
   index.html, app.js, styles.css   sidebar UI with the Email Verifier menu + sheet grid
   gas-shim.js                      google.script.run / google.script.host shim for the dialogs
   dialogs/                         verbatim copies of decision_maker.html + GuidelineDialog.html
-google-apps-script/        original Sheets code — untouched, git-ignored
+google-apps-script/        original Sheets code - untouched, git-ignored
 data/                      SQLite database (created on first run, git-ignored)
 ```
 
@@ -148,4 +148,4 @@ data/                      SQLite database (created on first run, git-ignored)
 
 ## 📄 License
 
-Private internal tool — Reachoutly / Reoon API integration.
+Private internal tool - Reachoutly / Reoon API integration.

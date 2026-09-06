@@ -1,5 +1,5 @@
 // =============================================================================
-//  decisionMaker.js — port of runDecisionMakerFilter / countDecisionMakerLeads /
+//  decisionMaker.js - port of runDecisionMakerFilter / countDecisionMakerLeads /
 //  matchesSubDepartment (Code.gs)
 // =============================================================================
 const lists = require('./lists');
@@ -154,8 +154,8 @@ function runFilter(user, listId, filters) {
     for (let i = 0; i < limit; i++) { cleanedRows.push(companyMap[company][i].row); totalKept++; }
   });
 
-  // Write to new list "Cleaned — <name>" (replace if exists, like clearing the sheet)
-  const cleanedName = 'Cleaned — ' + list.name;
+  // Write to new list "Cleaned - <name>" (replace if exists, like clearing the sheet)
+  const cleanedName = 'Cleaned - ' + list.name;
   const existing = lists.getListByName(user.id, cleanedName);
   if (existing) lists.deleteList(existing.id);
   const newId = lists.createList({
@@ -163,16 +163,16 @@ function runFilter(user, listId, filters) {
     sourceListId: list.id, columns: list.columns, rows: cleanedRows
   });
 
-  activity.logActivity({ user, fn: 'Decision Maker Filter', list, taskName: 'Decision Maker — ' + list.name, status: 'completed', total: totalKept });
+  activity.logActivity({ user, fn: 'Decision Maker Filter', list, taskName: 'Decision Maker - ' + list.name, status: 'completed', total: totalKept });
 
   const summary = [
-    '✅ Clean Decision Makers — Completed',
+    'Clean Decision Makers - Completed',
     '══════════════════════════════════════',
-    `📂 Scanned    : ${totalScanned} row(s)`,
-    `✅ Matched    : ${totalMatched} decision maker(s)`,
-    `📊 Final Kept : ${totalKept} row(s) (max ${f.perCompany} per company)`,
-    `🗂  Output Tab : "${cleanedName}"`,
-    `📢 Status Col : ${hasStatus ? 'Active (' + list.columns[cols.statusCol] + ')' : 'Not Found (Skipped)'}`
+    `Scanned    : ${totalScanned} row(s)`,
+    `Matched    : ${totalMatched} decision maker(s)`,
+    `Final Kept : ${totalKept} row(s) (max ${f.perCompany} per company)`,
+    `  Output Tab : "${cleanedName}"`,
+    `Status Col : ${hasStatus ? 'Active (' + list.columns[cols.statusCol] + ')' : 'Not Found (Skipped)'}`
   ].join('\n');
 
   return { ok: true, message: summary, listId: newId, listName: cleanedName, scanned: totalScanned, matched: totalMatched, kept: totalKept };

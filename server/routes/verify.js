@@ -13,7 +13,7 @@ function ownedList(req, res) {
   return list;
 }
 
-// Credits — visible to everyone (like the menu labels); keys never exposed
+// Credits - visible to everyone (like the menu labels); keys never exposed
 router.get('/credits', async (req, res) => {
   try {
     res.json(await reoon.getAllCredits(req.query.refresh === '1'));
@@ -26,10 +26,10 @@ router.post('/lead-list-clean', async (req, res) => {
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// ✉️ Verify Account Emails — admin only (locked for everyone else, same alert text as the sheet)
+// Verify Account Emails - admin only (locked for everyone else, same alert text as the sheet)
 router.post('/account', (req, res, next) => {
   if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: '🔒 Access Denied\n\nReachoutly has prohibited everyone from using this option, so it is locked.\nYour email: ' + req.user.email });
+    return res.status(403).json({ error: 'Access Denied\n\nReachoutly has prohibited everyone from using this option, so it is locked.\nYour email: ' + req.user.email });
   }
   next();
 }, async (req, res) => {
@@ -38,16 +38,16 @@ router.post('/account', (req, res, next) => {
   catch (e) { res.status(400).json({ error: e.message }); }
 });
 
-// 🔍 debugCreditBalance — raw Reoon API responses (admin, manual run)
+// debugCreditBalance - raw Reoon API responses (admin, manual run)
 router.get('/debug-credits', auth.requireAdmin, async (req, res) => {
-  const lines = ['🔍 Reoon API Raw Response', '══════════════════════════════'];
+  const lines = ['Reoon API Raw Response', '══════════════════════════════'];
   for (const acc of reoon.getAccounts(false)) {
-    if (!acc.api_key) { lines.push(acc.name + ': ❌ API Key not found'); continue; }
+    if (!acc.api_key) { lines.push(acc.name + ': API Key not found'); continue; }
     try {
       const r = await fetch(`${require('../config').reoon.apiBase}/check-account-balance/?key=${encodeURIComponent(acc.api_key)}`);
       const text = await r.text();
       lines.push(acc.name + ' [' + r.status + ']:\n  ' + text.slice(0, 400));
-    } catch (e) { lines.push(acc.name + ': ❌ Error: ' + e.message); }
+    } catch (e) { lines.push(acc.name + ': Error: ' + e.message); }
   }
   res.json({ message: lines.join('\n\n') });
 });

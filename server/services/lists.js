@@ -1,5 +1,5 @@
 // =============================================================================
-//  lists.js — Lead lists ("sheet tabs") stored in SQLite
+//  lists.js - Lead lists ("sheet tabs") stored in SQLite
 // =============================================================================
 const { db } = require('../db');
 

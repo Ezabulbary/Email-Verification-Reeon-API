@@ -1,5 +1,5 @@
 // =============================================================================
-//  config.js — Environment configuration
+//  config.js - Environment configuration
 // =============================================================================
 require('dotenv').config();
 const path = require('path');
@@ -35,14 +35,14 @@ const config = {
 
   pollIntervalSeconds: Math.max(10, num(process.env.POLL_INTERVAL_SECONDS, 60)),
 
-  // Same account names as the Google Sheet tabs — pre-loaded from .env on first start.
+  // Same account names as the Google Sheet tabs - pre-loaded from .env on first start.
   seedAccounts: ['emailastrallc', 'emranhossain', 'alimranshourov', 'aminsohel', 'amin', 'support', 'tool']
     .map((name) => ({ name, apiKey: (process.env['API_KEY_' + name] || '').trim() }))
     .filter((a) => a.apiKey)
 };
 
 if (config.sessionSecret === 'dev-insecure-secret-change-me') {
-  console.warn('⚠️  SESSION_SECRET is not set. Set a long random value in .env before using this in production.');
+  console.warn('SESSION_SECRET is not set. Set a long random value in .env before using this in production.');
 }
 
 module.exports = config;

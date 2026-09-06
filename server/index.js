@@ -1,5 +1,5 @@
 // =============================================================================
-//  Email Verification Dashboard — Express server
+//  Email Verification Dashboard - Express server
 // =============================================================================
 const path = require('path');
 const express = require('express');
@@ -41,6 +41,6 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(config.port, () => {
-  console.log(`\n📧 Email Verification Dashboard running at http://localhost:${config.port}\n`);
+  console.log(`\nEmail Verification Dashboard running at http://localhost:${config.port}\n`);
   workers.start();
 });

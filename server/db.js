@@ -1,5 +1,5 @@
 // =============================================================================
-//  db.js — SQLite database (Node built-in node:sqlite), schema + small helpers
+//  db.js - SQLite database (Node built-in node:sqlite), schema + small helpers
 // =============================================================================
 const fs = require('fs');
 const path = require('path');
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS list_rows (
 );
 CREATE INDEX IF NOT EXISTS idx_rows_list ON list_rows(list_id, row_index);
 
--- Activity log (= the "info" tab) — every automation run by every user
+-- Activity log (= the "info" tab) - every automation run by every user
 CREATE TABLE IF NOT EXISTS activity (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
   user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -151,9 +151,9 @@ function seed() {
     if (config.admin.email && config.admin.password) {
       db.prepare('INSERT INTO users (email, name, password_hash, role) VALUES (?, ?, ?, ?)')
         .run(config.admin.email, config.admin.name, bcrypt.hashSync(config.admin.password, 10), 'admin');
-      console.log('👤 First admin created: ' + config.admin.email);
+      console.log('First admin created: ' + config.admin.email);
     } else {
-      console.warn('⚠️  No users exist and ADMIN_EMAIL / ADMIN_PASSWORD are not set in .env.');
+      console.warn('No users exist and ADMIN_EMAIL / ADMIN_PASSWORD are not set in .env.');
       console.warn('    Set them and restart, or run: npm run create-admin');
     }
   }

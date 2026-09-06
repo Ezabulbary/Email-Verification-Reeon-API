@@ -40,7 +40,7 @@ router.post('/company-cleaner/reset', (req, res) => {
   res.json(companyCleaner.reset(req.user));
 });
 
-// ── Activity log ("info" tab) — admin sees everyone, users see their own ──
+// ── Activity log ("info" tab) - admin sees everyone, users see their own ──
 router.get('/activity', (req, res) => {
   const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 200, 1), 1000);
   const offset = Math.max(parseInt(req.query.offset, 10) || 0, 0);
