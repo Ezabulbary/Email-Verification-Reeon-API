@@ -140,9 +140,9 @@
   new MutationObserver(() => enhancePasswordInputs(document)).observe(document.documentElement, { childList: true, subtree: true });
 
   // ── State / routing ────────────────────────────────────────────────────────
-  const state = { user: null, credits: null, lists: [], activeId: null, groups: { sheets: true, verify: true, dm: true, cc: true, admin: true, account: false } };
+  const state = { user: null, credits: null, lists: [], activeId: null, groups: { sheets: true, cleaner: true, verify: true, dm: true, cc: true, admin: true, account: false } };
   const PAGE = 200;
-  const routes = { '': 'overview', overview: 'overview', sheets: 'sheets', list: 'sheet', activity: 'activity', users: 'users', settings: 'settings', account: 'account', help: 'help' };
+  const routes = { '': 'overview', overview: 'overview', sheets: 'sheets', list: 'sheet', activity: 'activity', users: 'users', settings: 'settings', account: 'account', help: 'help', cleaner: 'cleaner' };
   const parseHash = () => { const [name, ...args] = location.hash.replace(/^#\/?/, '').split('/'); return { name: name || '', args }; };
   window.addEventListener('hashchange', render);
   const isAdmin = () => state.user && state.user.role === 'admin';
@@ -245,15 +245,11 @@
         <div class="grp-h">${icon(ic)}<span>${label}</span>${extra || ''}<span class="chev">${icon('chevron', 14)}</span></div>
         <div class="grp-b">${body}</div>
       </div>`;
-    const MAX = 10;
-    const sheetsBody = `
-      ${page('sheets', '', 'All sheets')}
-      ${mi('upload', icon('plus', 14) + ' Upload sheet')}
-      ${state.lists.slice(0, MAX).map((l) => `<a href="#/list/${l.id}" class="sheet ${name === 'list' && Number(args[0]) === l.id ? 'active' : (cur && cur.id === l.id ? 'selected' : '')}" title="${esc(l.name)}">${l.pending_tasks ? '<span class="dot"></span>' : '<span class="dot off"></span>'}<span class="n">${esc(l.name)}</span><small>${num(l.row_count)}</small></a>`).join('')}
-      ${state.lists.length > MAX ? `<a href="#/sheets" class="more">… ${state.lists.length - MAX} more</a>` : ''}`;
+    const sheetsBody = page('sheets', '', 'All sheets');
     nav.innerHTML = `
       ${page('overview', 'home', 'Overview', 'top')}
       ${group('sheets', 'file', 'Sheets', sheetsBody, `<small>${state.lists.length}</small>`)}
+      ${group('cleaner', 'grid', 'Sheet Cleaner', page('cleaner', '', 'Clean columns and rows'))}
       ${group('verify', 'mail', 'Email Verification', `
         ${mi('llc', `Lead List Clean <small>(Total D: ${num(cr.totalDaily)})</small>`)}
         ${mi('check-pending', 'Check Pending Results')}
@@ -311,7 +307,7 @@
       default: return;
     }
   }
-  const refreshCurrentView = async () => { await loadLists(); refreshActiveSelect(); const v = routes[parseHash().name] || 'overview'; if (v === 'sheet' || v === 'sheets' || v === 'activity' || v === 'overview') views[v](parseHash().args).catch(() => {}); };
+  const refreshCurrentView = async () => { await loadLists(); refreshActiveSelect(); const v = routes[parseHash().name] || 'overview'; if (v === 'sheet' || v === 'sheets' || v === 'activity' || v === 'overview' || v === 'cleaner') views[v](parseHash().args).catch(() => {}); };
 
   // Verify Account Emails → verifyEmails(tabName)
   async function verifyAccount(account) {
@@ -466,7 +462,7 @@
     if (!s) return ''; if (s === 'pending...') return 'c-pending'; if (s.startsWith('error')) return 'c-err';
     return 'c-' + s.replace(/[^a-z_]/g, '');
   };
-  const kindBadge = (k) => ({ upload: '<span class="badge gray">upload</span>', decision_makers: '<span class="badge blue">decision makers</span>', company_clean: '<span class="badge">company clean</span>' }[k] || esc(k));
+  const kindBadge = (k) => ({ upload: '<span class="badge gray">upload</span>', decision_makers: '<span class="badge blue">decision makers</span>', company_clean: '<span class="badge">company clean</span>', sheet_cleaner: '<span class="badge blue">sheet cleaner</span>' }[k] || esc(k));
 
   views.overview = async () => {
     setTitle('Overview');
@@ -706,6 +702,98 @@
     await draw();
   };
 
+  views.cleaner = async () => {
+    setTitle('Sheet Cleaner');
+    const c = $('#content');
+    await loadLists();
+    const cur = activeList();
+    const st = { listId: cur ? cur.id : (state.lists[0] ? state.lists[0].id : null), selected: new Set(), mode: 'keep', dropBlank: false, output: 'new' };
+    let list = null;
+    let countTimer = null;
+
+    const draw = () => {
+      c.innerHTML = `
+        <div class="card"><h3>Source sheet <span class="right"><button class="btn sm" id="sc-upload">${icon('upload', 14)} Upload a new sheet</button></span></h3>
+          <div class="row"><div><select id="sc-list">${state.lists.length ? state.lists.map((l) => `<option value="${l.id}" ${l.id === st.listId ? 'selected' : ''}>${esc(l.name)} (${num(l.row_count)} rows, ${l.columns.length} columns)</option>`).join('') : '<option value="">No sheets yet. Upload one first.</option>'}</select></div></div>
+        </div>
+        <div class="card" id="sc-cols"></div>
+        <div class="card"><h3>Options</h3>
+          <label class="check big"><input type="checkbox" id="sc-blank" ${st.dropBlank ? 'checked' : ''}> <span>Delete rows where the <b>Email</b> cell is blank <span class="hint" id="sc-blank-count"></span></span></label>
+          <div class="seg" style="margin-top:12px">
+            <label class="seg-opt ${st.output === 'new' ? 'on' : ''}"><input type="radio" name="sc-out" value="new" ${st.output === 'new' ? 'checked' : ''}> Save as a new sheet</label>
+            <label class="seg-opt ${st.output === 'replace' ? 'on' : ''}"><input type="radio" name="sc-out" value="replace" ${st.output === 'replace' ? 'checked' : ''}> Apply to this sheet</label>
+          </div>
+          <div class="field" id="sc-name-wrap" style="margin-top:10px" ${st.output === 'new' ? '' : 'hidden'}><label class="f">New sheet name <span class="hint">(optional)</span></label><input type="text" id="sc-name" placeholder="${list ? esc(list.name) + ' (cleaned)' : ''}"></div>
+        </div>
+        <div class="card"><div class="row" style="align-items:center"><div id="sc-summary" class="hint"></div><div class="auto"><button class="btn primary" id="sc-run" disabled>Clean sheet</button></div></div></div>`;
+      $('#sc-list').onchange = (e) => { st.listId = Number(e.target.value); st.selected.clear(); loadSheet(); };
+      $('#sc-upload').onclick = () => uploadList();
+      $('#sc-blank').onchange = (e) => { st.dropBlank = e.target.checked; refresh(); };
+      $$('input[name=sc-out]').forEach((r) => r.onchange = () => { st.output = r.value; $$('.seg-opt').forEach((o) => o.classList.toggle('on', o.querySelector('input').checked)); $('#sc-name-wrap').hidden = st.output !== 'new'; refresh(); });
+      $('#sc-run').onclick = run;
+      drawColumns();
+    };
+
+    const drawColumns = () => {
+      const box = $('#sc-cols'); if (!box) return;
+      if (!list) { box.innerHTML = '<h3>Columns</h3><div class="empty">Select a sheet to see its columns.</div>'; return; }
+      box.innerHTML = `<h3>Columns <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:500">Click a column to select it</span>
+          <span class="right"><button class="btn sm ghost" id="sc-all">Select all</button><button class="btn sm ghost" id="sc-none">Clear</button></span></h3>
+        <div class="seg" style="margin-bottom:12px">
+          <label class="seg-opt ${st.mode === 'keep' ? 'on' : ''}"><input type="radio" name="sc-mode" value="keep" ${st.mode === 'keep' ? 'checked' : ''}> Keep only the selected columns</label>
+          <label class="seg-opt ${st.mode === 'delete' ? 'on' : ''}"><input type="radio" name="sc-mode" value="delete" ${st.mode === 'delete' ? 'checked' : ''}> Delete the selected columns</label>
+        </div>
+        <div class="colchips">${list.columns.map((h, i) => `<button type="button" class="colchip ${st.selected.has(i) ? 'on' : ''}" data-i="${i}"><span class="colchip-letter">${colLetter(i)}</span>${esc(h)}</button>`).join('')}</div>`;
+      $$('.colchip', box).forEach((b) => b.onclick = () => { const i = Number(b.dataset.i); if (st.selected.has(i)) st.selected.delete(i); else st.selected.add(i); b.classList.toggle('on', st.selected.has(i)); refresh(); });
+      $('#sc-all').onclick = () => { list.columns.forEach((_, i) => st.selected.add(i)); $$('.colchip', box).forEach((b) => b.classList.add('on')); refresh(); };
+      $('#sc-none').onclick = () => { st.selected.clear(); $$('.colchip', box).forEach((b) => b.classList.remove('on')); refresh(); };
+      $$('input[name=sc-mode]', box).forEach((r) => r.onchange = () => { st.mode = r.value; $$('.seg-opt', box).forEach((o) => o.classList.toggle('on', o.querySelector('input').checked)); refresh(); });
+    };
+
+    const loadSheet = async () => {
+      list = st.listId ? state.lists.find((l) => l.id === st.listId) || null : null;
+      if (list) setActive(list.id);
+      draw(); refresh();
+    };
+
+    const refresh = () => {
+      clearTimeout(countTimer);
+      const run = $('#sc-run'), sum = $('#sc-summary'); if (!run) return;
+      if (!list) { run.disabled = true; sum.textContent = ''; return; }
+      countTimer = setTimeout(async () => {
+        try {
+          const p = await api('/sheet-cleaner/preview', { method: 'POST', body: { listId: list.id, columns: [...st.selected], mode: st.mode, dropBlankEmail: st.dropBlank } });
+          const parts = [];
+          parts.push(st.selected.size ? `${num(p.keptColumns)} of ${num(p.totalColumns)} columns will remain` : 'No columns selected: all columns stay');
+          if (st.dropBlank) parts.push(p.hasEmail ? `${num(p.blankEmailRows)} row(s) with a blank Email will be deleted` : 'this sheet has no Email column');
+          parts.push(`result: ${num(p.rowsAfter)} rows x ${num(p.keptColumns)} columns`);
+          sum.textContent = parts.join(' | ');
+          const bc = $('#sc-blank-count'); if (bc) bc.textContent = p.hasEmail ? `(${num(p.blankEmailRows)} row(s))` : '(no Email column in this sheet)';
+          const nothing = p.removedColumns === 0 && !(st.dropBlank && p.hasEmail);
+          run.disabled = nothing || p.keptColumns === 0;
+        } catch (e) { sum.textContent = e.message; run.disabled = true; }
+      }, 150);
+    };
+
+    async function run() {
+      if (!list) return;
+      const body = { listId: list.id, columns: [...st.selected], mode: st.mode, dropBlankEmail: st.dropBlank, output: st.output, name: $('#sc-name') ? $('#sc-name').value : '' };
+      const what = [];
+      if (st.selected.size) what.push(st.mode === 'keep' ? `keep only ${st.selected.size} selected column(s)` : `delete ${st.selected.size} selected column(s)`);
+      if (st.dropBlank) what.push('delete rows with a blank Email');
+      const ok = await uiConfirm('Clean sheet', `Sheet: ${list.name}\nAction: ${what.join(' and ')}\nOutput: ${st.output === 'replace' ? 'apply to this sheet (cannot be undone)' : 'a new sheet'}\n\nProceed?`, 'Clean', 'Cancel');
+      if (!ok) return;
+      try {
+        const r = await api('/sheet-cleaner/run', { method: 'POST', body });
+        await loadLists(); refreshActiveSelect(); setActive(r.listId);
+        await uiAlert(r.message, 'Sheet Cleaner');
+        location.hash = '#/list/' + r.listId;
+      } catch (e) { uiAlert(e.message, 'Sheet Cleaner'); }
+    }
+
+    await loadSheet();
+  };
+
   views.help = async () => {
     setTitle('Guideline & Help');
     $('#content').innerHTML = `<div class="help">
@@ -713,6 +801,11 @@
         <ul><li>Upload a <span class="highlight">CSV or XLSX</span> from <b>Sheets → ＋ Upload sheet</b>. The first row must be the header. Each upload becomes a sheet, listed in the sidebar.</li>
         <li>Open a sheet to see its data and stats. Download the result any time as CSV or XLSX. The sheet that is open (or last opened) is the <span class="highlight">selected sheet</span> - every tool runs on it.</li>
         <li>Users only see their own sheets. <span class="highlight">Admins see everyone's sheets.</span></li></ul></div>
+      <div class="card"><h3>Sheet Cleaner</h3>
+        <ul><li>Pick a sheet (or upload a new one). Its columns appear as chips: click to select.</li>
+        <li><span class="highlight">Keep only the selected columns</span> or <span class="highlight">Delete the selected columns</span>. Nothing selected means all columns stay.</li>
+        <li>Tick <span class="highlight">Delete rows where the Email cell is blank</span> to drop rows without an email address.</li>
+        <li>Save the result as a new sheet (default) or apply it to the same sheet.</li></ul></div>
       <div class="card"><h3>Bulk Lead List Clean</h3>
         <p>Automatically verifies large email lists using all enabled Reoon accounts in parallel:</p>
         <ul><li>Divides all unverified emails across available Reoon accounts to maximize daily verification speed.</li>

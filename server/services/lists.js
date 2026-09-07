@@ -108,6 +108,13 @@ const setCells = db.transaction((listId, updates) => {
   return n;
 });
 
+/** Replace a list's columns and rows in place (used by Sheet Cleaner "apply to this sheet"). */
+const replaceContents = db.transaction((listId, columns, rows) => {
+  db.prepare('DELETE FROM list_rows WHERE list_id = ?').run(listId);
+  rows.forEach((r, i) => insertRow.run(listId, i, JSON.stringify(columns.map((_, c) => (r[c] === undefined || r[c] === null ? '' : r[c])))));
+  db.prepare("UPDATE lists SET columns = ?, row_count = ?, updated_at = datetime('now') WHERE id = ?").run(JSON.stringify(columns), rows.length, listId);
+});
+
 function deleteList(id) {
   db.prepare('DELETE FROM lists WHERE id = ?').run(id);
 }
@@ -167,6 +174,6 @@ module.exports = {
   EMAIL_HEADERS, STATUS_HEADERS, DATE_HEADERS, PENDING_STATUS,
   findHeader, isValidEmail, norm,
   createList, getList, getListByName, listsForUser, getRows, getRowsPage,
-  addColumn, setCells, deleteList, renameList, ensureVerificationColumns,
+  addColumn, setCells, replaceContents, deleteList, renameList, ensureVerificationColumns,
   countPendingRows, clearPendingRows, canAccess
 };

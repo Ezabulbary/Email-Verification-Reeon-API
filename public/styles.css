@@ -269,3 +269,17 @@ pre.summary { background: var(--bg); border: 1px solid var(--border); border-rad
 .req { margin-top: 6px; background: #f9fafb; border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; }
 .req-t { font-size: 11px; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
 .req ul { margin-left: 18px; color: var(--muted); font-size: 12px; } .req li { margin-bottom: 3px; }
+
+/* ── Sheet Cleaner ── */
+.colchips { display: flex; flex-wrap: wrap; gap: 8px; }
+.colchip { display: inline-flex; align-items: center; gap: 7px; background: #fff; border: 1px solid var(--border2); color: var(--muted); border-radius: 20px; padding: 6px 12px 6px 6px; font-size: 12.5px; cursor: pointer; font-family: inherit; transition: all .12s; }
+.colchip:hover { border-color: #a5b4fc; color: var(--text); }
+.colchip.on { background: #e0e7ff; border-color: #818cf8; color: #3730a3; font-weight: 600; }
+.colchip-letter { width: 22px; height: 22px; border-radius: 50%; background: #f3f4f6; color: var(--dim); font-size: 10.5px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+.colchip.on .colchip-letter { background: #4f46e5; color: #fff; }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.seg-opt { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--border2); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 12.5px; color: var(--muted); background: #fff; }
+.seg-opt.on { border-color: #818cf8; background: #eef2ff; color: #3730a3; font-weight: 600; }
+.seg-opt input { accent-color: var(--accent); }
+.check.big { font-size: 13px; color: var(--text); gap: 9px; }
+.check.big input { width: 16px; height: 16px; accent-color: var(--accent); }

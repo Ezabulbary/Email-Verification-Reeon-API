@@ -5,6 +5,7 @@ const lists = require('../services/lists');
 const decisionMaker = require('../services/decisionMaker');
 const companyCleaner = require('../services/companyCleaner');
 const activity = require('../services/activityLog');
+const sheetCleaner = require('../services/sheetCleaner');
 
 const router = express.Router();
 router.use(auth.requireAuth);
@@ -38,6 +39,18 @@ router.get('/company-cleaner/progress', (req, res) => {
 });
 router.post('/company-cleaner/reset', (req, res) => {
   res.json(companyCleaner.reset(req.user));
+});
+
+// ── Sheet cleaner (columns / blank-email rows) ──
+router.post('/sheet-cleaner/preview', (req, res) => {
+  const list = ownedList(req, res); if (!list) return;
+  try { res.json(sheetCleaner.preview(list.id, req.body)); }
+  catch (e) { res.status(400).json({ error: e.message }); }
+});
+router.post('/sheet-cleaner/run', (req, res) => {
+  const list = ownedList(req, res); if (!list) return;
+  try { res.json(sheetCleaner.run(req.user, list.id, req.body)); }
+  catch (e) { res.status(400).json({ error: e.message }); }
 });
 
 // ── Activity log ("info" tab) - admin sees everyone, users see their own ──
