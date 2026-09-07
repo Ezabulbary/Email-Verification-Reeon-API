@@ -3,6 +3,7 @@ const multer = require('multer');
 const auth = require('../auth');
 const lists = require('../services/lists');
 const fileParser = require('../services/fileParser');
+const googleSheet = require('../services/googleSheet');
 const { db } = require('../db');
 
 const router = express.Router();
@@ -34,6 +35,21 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     const base = name; let n = 2;
     while (lists.getListByName(req.user.id, name)) name = `${base} (${n++})`;
     const id = lists.createList({ userId: req.user.id, name, originalName: req.file.originalname, kind: 'upload', columns, rows });
+    res.json({ ok: true, list: lists.getList(id) });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+/** Import a Google Sheet shared "Anyone with the link" - keeps a copy here (history). */
+router.post('/import-google', async (req, res) => {
+  try {
+    const g = await googleSheet.importSheet(req.body.url);
+    if (!g.rows.length) return res.status(400).json({ error: 'The Google Sheet has a header row but no data rows.' });
+    let name = String(req.body.name || '').trim() || g.title || 'Google Sheet';
+    const base = name; let n = 2;
+    while (lists.getListByName(req.user.id, name)) name = `${base} (${n++})`;
+    const id = lists.createList({ userId: req.user.id, name, originalName: g.title || null, kind: 'google', sourceUrl: g.url, columns: g.columns, rows: g.rows });
     res.json({ ok: true, list: lists.getList(id) });
   } catch (e) {
     res.status(400).json({ error: e.message });

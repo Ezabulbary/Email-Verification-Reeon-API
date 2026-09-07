@@ -283,3 +283,9 @@ pre.summary { background: var(--bg); border: 1px solid var(--border); border-rad
 .seg-opt input { accent-color: var(--accent); }
 .check.big { font-size: 13px; color: var(--text); gap: 9px; }
 .check.big input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* ── Dialog tabs ── */
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 14px; }
+.tabs .tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--dim); cursor: pointer; font-family: inherit; margin-bottom: -1px; }
+.tabs .tab:hover { color: var(--text); }
+.tabs .tab.on { color: var(--accent); border-bottom-color: var(--accent); }

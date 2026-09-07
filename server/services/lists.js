@@ -23,12 +23,12 @@ function isValidEmail(email) {
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
-const insertList = db.prepare(`INSERT INTO lists (user_id, name, original_name, kind, source_list_id, columns, row_count)
-                               VALUES (?, ?, ?, ?, ?, ?, ?)`);
+const insertList = db.prepare(`INSERT INTO lists (user_id, name, original_name, kind, source_list_id, source_url, columns, row_count)
+                               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
 const insertRow  = db.prepare('INSERT INTO list_rows (list_id, row_index, data) VALUES (?, ?, ?)');
 
-const createList = db.transaction(({ userId, name, originalName, kind, sourceListId, columns, rows }) => {
-  const info = insertList.run(userId, name, originalName || null, kind || 'upload', sourceListId || null,
+const createList = db.transaction(({ userId, name, originalName, kind, sourceListId, sourceUrl, columns, rows }) => {
+  const info = insertList.run(userId, name, originalName || null, kind || 'upload', sourceListId || null, sourceUrl || null,
     JSON.stringify(columns), rows.length);
   const listId = info.lastInsertRowid;
   rows.forEach((r, i) => {
@@ -52,7 +52,7 @@ function getListByName(userId, name) {
 }
 
 function listsForUser(user) {
-  const sql = `SELECT l.id, l.name, l.original_name, l.kind, l.source_list_id, l.columns, l.row_count, l.created_at, l.updated_at,
+  const sql = `SELECT l.id, l.name, l.original_name, l.kind, l.source_list_id, l.source_url, l.columns, l.row_count, l.created_at, l.updated_at,
                       l.user_id, u.email AS owner_email
                FROM lists l LEFT JOIN users u ON u.id = l.user_id
                ${user.role === 'admin' ? '' : 'WHERE l.user_id = ?'}

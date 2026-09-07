@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS lists (
   original_name  TEXT,
   kind           TEXT NOT NULL DEFAULT 'upload',
   source_list_id INTEGER,
+  source_url     TEXT,                     -- Google Sheet link the sheet was imported from
   columns        TEXT NOT NULL,            -- JSON array of header names
   row_count      INTEGER NOT NULL DEFAULT 0,
   created_at     TEXT NOT NULL DEFAULT (datetime('now')),
@@ -131,6 +132,12 @@ CREATE TABLE IF NOT EXISTS clean_jobs (
   updated_at         TEXT NOT NULL DEFAULT (datetime('now'))
 );
 `);
+
+// ── Migrations for databases created by earlier versions ──
+try {
+  const cols = db.prepare('PRAGMA table_info(lists)').all().map((c) => c.name);
+  if (cols.indexOf('source_url') === -1) db.exec('ALTER TABLE lists ADD COLUMN source_url TEXT');
+} catch (e) { console.warn('Migration warning: ' + e.message); }
 
 // ── Settings helpers ─────────────────────────────────────────────────────────
 const getSettingStmt = db.prepare('SELECT value FROM settings WHERE key = ?');

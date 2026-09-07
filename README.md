@@ -28,6 +28,14 @@ job cannot be started twice by accident. The original `decision_maker.html` and
 
 ---
 
+## Google Sheet import
+
+Any "Add sheet" dialog (All sheets, Sheet Cleaner) has a **Google Sheet link** tab. Paste the link of a
+Google Sheet that is shared as **Anyone with the link: Viewer**; the dashboard downloads the tab in
+the link (or the first tab) through Google's public CSV export and stores it here as a sheet, so the
+history stays in the dashboard. The Google Sheet itself is never modified. A sheet imported this way
+shows its source link and an "Import again as a new sheet" button. No Google credentials are needed.
+
 ## 👥 Roles
 
 | | **Admin** | **User** |

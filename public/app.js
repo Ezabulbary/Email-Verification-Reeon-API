@@ -188,7 +188,7 @@
   }
   async function requireActiveList() {
     const l = activeList();
-    if (!l) { await uiAlert('No sheet is selected.\n\nOpen a sheet from the sidebar (or upload one with "＋ Upload sheet"), then run this again.'); return null; }
+    if (!l) { await uiAlert('No sheet is selected.\n\nOpen a sheet from the sidebar (or add one from All sheets), then run this again.'); return null; }
     return l;
   }
 
@@ -407,7 +407,16 @@
   }
   async function uploadList() {
     const fmt = (b) => (b > 1048576 ? (b / 1048576).toFixed(1) + ' MB' : b > 1024 ? Math.round(b / 1024) + ' KB' : b + ' B');
-    shell('Upload a sheet', `
+    shell('Add a sheet', `
+      <div class="tabs" id="up-tabs"><button type="button" class="tab on" data-tab="file">Upload a file</button><button type="button" class="tab" data-tab="google">Google Sheet link</button></div>
+      <div id="tab-google" hidden>
+        <div class="field"><label class="f">Google Sheet link</label><input type="text" id="gs-url" placeholder="https://docs.google.com/spreadsheets/d/.../edit#gid=0" autocomplete="off"></div>
+        <div class="req" style="margin-bottom:12px"><div class="req-t">Before importing</div>
+          <ul><li>In Google Sheets click <b>Share</b> and set <b>Anyone with the link</b> to <b>Viewer</b>.</li>
+          <li>The tab that is open in the link (gid) is imported; otherwise the first tab.</li>
+          <li>A copy is saved here as a sheet, so the history stays in this dashboard. The Google Sheet itself is not changed.</li></ul></div>
+      </div>
+      <div id="tab-file">
       <div class="dropzone" id="dz" tabindex="0">
         <input type="file" id="dz-file" accept=".csv,.tsv,.txt,.xlsx,.xlsm" hidden>
         <div class="dz-icon">${icon('upload', 26)}</div>
@@ -415,7 +424,8 @@
         <div class="dz-sub">or <b>click to browse</b> · CSV, TSV or XLSX · up to 50 MB</div>
         <div class="dz-file" id="dz-name" hidden></div>
       </div>
-      <div class="field" style="margin-top:14px"><label class="f">Sheet name <span class="hint">(optional, defaults to the file name)</span></label><input type="text" id="dz-sheet" placeholder="e.g. Leads May 2026"></div>
+      </div>
+      <div class="field" style="margin-top:14px"><label class="f">Sheet name <span class="hint" id="dz-sheet-hint">(optional, defaults to the file name)</span></label><input type="text" id="dz-sheet" placeholder="e.g. Leads May 2026"></div>
       <div class="req">
         <div class="req-t">Column requirements (first row must be the header)</div>
         <ul>
@@ -427,6 +437,20 @@
       '<button class="btn" id="m-no">Cancel</button><button class="btn primary" id="m-ok" disabled>Upload</button>');
     const dz = $('#dz'), inp = $('#dz-file'), nameEl = $('#dz-name'), ok = $('#m-ok');
     let file = null;
+    let mode = 'file';
+    const gsUrl = $('#gs-url');
+    const setMode = (m) => {
+      mode = m;
+      $$('#up-tabs .tab').forEach((t) => t.classList.toggle('on', t.dataset.tab === m));
+      $('#tab-file').hidden = m !== 'file'; $('#tab-google').hidden = m !== 'google';
+      ok.textContent = m === 'file' ? 'Upload' : 'Import';
+      $('#dz-sheet-hint').textContent = m === 'file' ? '(optional, defaults to the file name)' : '(optional, defaults to the Google Sheet title)';
+      ok.disabled = m === 'file' ? !file : !gsUrl.value.trim();
+      if (m === 'google') gsUrl.focus();
+    };
+    $$('#up-tabs .tab').forEach((t) => t.onclick = () => setMode(t.dataset.tab));
+    gsUrl.oninput = () => { if (mode === 'google') ok.disabled = !gsUrl.value.trim(); };
+    gsUrl.onkeydown = (e) => { if (e.key === 'Enter' && !ok.disabled) ok.click(); };
     const setFile = (f) => {
       if (!f) return;
       if (!/\.(csv|tsv|txt|xlsx|xlsm)$/i.test(f.name)) { toast('Please choose a CSV, TSV or XLSX file.', 'err'); return; }
@@ -442,6 +466,17 @@
     dz.addEventListener('drop', (e) => setFile(e.dataTransfer.files[0]));
     $('#m-no').onclick = closeModal;
     ok.onclick = async () => {
+      if (mode === 'google') {
+        const url = gsUrl.value.trim(); if (!url) return;
+        ok.disabled = true; ok.innerHTML = '<span class="spin"></span>Importing';
+        try {
+          const res = await api('/lists/import-google', { method: 'POST', body: { url, name: $('#dz-sheet').value.trim() } });
+          closeModal(); await loadLists(); refreshActiveSelect(); setActive(res.list.id);
+          toast(`Sheet "${res.list.name}" imported from Google Sheets with ${num(res.list.row_count)} rows`, 'ok');
+          location.hash = '#/list/' + res.list.id;
+        } catch (e) { ok.disabled = false; ok.textContent = 'Import'; toast(e.message, 'err'); }
+        return;
+      }
       if (!file) return;
       const fd = new FormData(); fd.append('file', file); fd.append('name', $('#dz-sheet').value.trim());
       ok.disabled = true; ok.innerHTML = '<span class="spin"></span>Uploading';
@@ -462,7 +497,7 @@
     if (!s) return ''; if (s === 'pending...') return 'c-pending'; if (s.startsWith('error')) return 'c-err';
     return 'c-' + s.replace(/[^a-z_]/g, '');
   };
-  const kindBadge = (k) => ({ upload: '<span class="badge gray">upload</span>', decision_makers: '<span class="badge blue">decision makers</span>', company_clean: '<span class="badge">company clean</span>', sheet_cleaner: '<span class="badge blue">sheet cleaner</span>' }[k] || esc(k));
+  const kindBadge = (k) => ({ upload: '<span class="badge gray">upload</span>', decision_makers: '<span class="badge blue">decision makers</span>', company_clean: '<span class="badge">company clean</span>', sheet_cleaner: '<span class="badge blue">sheet cleaner</span>', google: '<span class="badge green">google sheet</span>' }[k] || esc(k));
 
   views.overview = async () => {
     setTitle('Overview');
@@ -508,10 +543,10 @@
     const draw = async () => {
       await loadLists(); refreshActiveSelect();
       const pending = await api('/verify/pending');
-      c.innerHTML = `<div class="card"><h3>Sheets <span class="right"><button class="btn sm primary" id="up">＋ Upload sheet (CSV / XLSX)</button><button class="btn sm" id="reload">↻ Refresh</button></span></h3>
+      c.innerHTML = `<div class="card"><h3>Sheets <span class="right"><button class="btn sm primary" id="up">${icon('plus', 14)} Add sheet (file or Google Sheet link)</button><button class="btn sm" id="reload">↻ Refresh</button></span></h3>
         ${!state.lists.length ? '<div class="empty">No sheets yet - upload a CSV or XLSX. Each upload becomes a sheet, then use the Email Verifier menu on the left.</div>' : `
         <div class="tbl-wrap"><table class="t"><thead><tr><th>Sheet</th><th>Type</th><th>Rows</th><th>Cols</th><th>Pending tasks</th>${isAdmin() ? '<th>Owner</th>' : ''}<th>Updated</th><th>Actions</th></tr></thead><tbody>
-        ${state.lists.map((l) => `<tr><td><a href="#/list/${l.id}"><b>${esc(l.name)}</b></a>${l.id === state.activeId ? ' <span class="badge blue">selected</span>' : ''}</td><td>${kindBadge(l.kind)}</td><td>${num(l.row_count)}</td><td title="${esc(l.columns.join(', '))}">${l.columns.length}</td>
+        ${state.lists.map((l) => `<tr><td><a href="#/list/${l.id}"><b>${esc(l.name)}</b></a>${l.id === state.activeId ? ' <span class="badge blue">selected</span>' : ''}${l.source_url ? ` <a class="hint" href="${esc(l.source_url)}" target="_blank" rel="noopener" title="Open the source Google Sheet">source</a>` : ''}</td><td>${kindBadge(l.kind)}</td><td>${num(l.row_count)}</td><td title="${esc(l.columns.join(', '))}">${l.columns.length}</td>
           <td>${l.pending_tasks ? `<span class="badge amber">${l.pending_tasks} running</span>` : '-'}</td>${isAdmin() ? `<td>${esc(l.owner_email)}</td>` : ''}<td>${fmtDate(l.updated_at)}</td>
           <td><a class="btn sm" href="#/list/${l.id}">Open</a><a class="btn sm" href="/api/lists/${l.id}/download?format=csv">CSV</a><a class="btn sm" href="/api/lists/${l.id}/download?format=xlsx">XLSX</a><button class="btn sm ghost" data-rename="${l.id}">Rename</button><button class="btn sm danger" data-del="${l.id}">Delete</button></td></tr>`).join('')}
         </tbody></table></div>`}
@@ -554,7 +589,7 @@
           <div class="stat"><div class="lbl">Verified</div><div class="val green">${num(verifiedTotal)}</div><div class="sub" style="white-space:normal">${byStatus || '-'}</div></div>
         </div>
         <div class="card"><h3>Sheet data <span class="right">rows ${num(page * PAGE + 1)}–${num(Math.min((page + 1) * PAGE, list.row_count))} of ${num(list.row_count)} &nbsp;<a class="btn sm" href="/api/lists/${list.id}/download?format=csv">CSV</a><a class="btn sm" href="/api/lists/${list.id}/download?format=xlsx">XLSX</a><button class="btn sm ghost" id="a-rename">Rename</button><button class="btn sm ghost" id="a-refresh">↻</button></span></h3>
-          <div class="hint" style="margin-bottom:10px">Use the <b>Email Verifier menu</b> on the left to run the tools on this sheet.</div>
+          <div class="hint" style="margin-bottom:10px">Use the sections on the left to run the tools on this sheet.${list.source_url ? ` Imported from <a href="${esc(list.source_url)}" target="_blank" rel="noopener">this Google Sheet</a> on ${fmtDate(list.created_at)}. <button class="btn sm ghost" id="a-reimport">Import again as a new sheet</button>` : ''}</div>
           <div class="sheet"><table><thead>
             <tr class="letters"><th class="rn"></th>${list.columns.map((_, i) => `<th>${colLetter(i)}</th>`).join('')}</tr>
             <tr class="header"><th class="rn">1</th>${list.columns.map((h) => `<th>${esc(h)}</th>`).join('')}</tr></thead><tbody>
@@ -563,6 +598,15 @@
           ${pages > 1 ? `<div class="pager"><button class="btn sm" id="pg-prev" ${page === 0 ? 'disabled' : ''}>← Prev</button><span>page ${page + 1} / ${pages}</span><button class="btn sm" id="pg-next" ${page + 1 >= pages ? 'disabled' : ''}>Next →</button></div>` : ''}
         </div>`;
       $('#a-refresh').onclick = draw;
+      if ($('#a-reimport')) $('#a-reimport').onclick = async () => {
+        uiBusy('Import from Google Sheets', 'Fetching the latest data from the Google Sheet');
+        try {
+          const res = await api('/lists/import-google', { method: 'POST', body: { url: list.source_url, name: list.name } });
+          closeModal(); await loadLists(); refreshActiveSelect(); setActive(res.list.id);
+          toast(`Sheet "${res.list.name}" imported with ${num(res.list.row_count)} rows`, 'ok');
+          location.hash = '#/list/' + res.list.id;
+        } catch (e) { closeModal(); uiAlert(e.message, 'Import from Google Sheets'); }
+      };
       $('#a-rename').onclick = async () => {
         const r = await uiForm('Rename sheet', [{ name: 'name', label: 'New name', value: list.name, required: true }], 'Rename');
         if (r) { try { await api('/lists/' + list.id, { method: 'PATCH', body: { name: r.name } }); await loadLists(); refreshActiveSelect(); } catch (e) { toast(e.message, 'err'); } draw(); }
@@ -798,7 +842,8 @@
     setTitle('Guideline & Help');
     $('#content').innerHTML = `<div class="help">
       <div class="card"><h3>Sheets (instead of spreadsheet tabs)</h3>
-        <ul><li>Upload a <span class="highlight">CSV or XLSX</span> from <b>Sheets → ＋ Upload sheet</b>. The first row must be the header. Each upload becomes a sheet, listed in the sidebar.</li>
+        <ul><li>Add a sheet from <b>Sheets → All sheets → Add sheet</b>: upload a <span class="highlight">CSV or XLSX</span>, or paste a <span class="highlight">Google Sheet link</span> (the Google Sheet must be shared as "Anyone with the link: Viewer"; a copy is kept here, the Google Sheet is not changed).</li>
+        <li>For uploads the first row must be the header. Each upload or import becomes a sheet listed under All sheets.</li>
         <li>Open a sheet to see its data and stats. Download the result any time as CSV or XLSX. The sheet that is open (or last opened) is the <span class="highlight">selected sheet</span> - every tool runs on it.</li>
         <li>Users only see their own sheets. <span class="highlight">Admins see everyone's sheets.</span></li></ul></div>
       <div class="card"><h3>Sheet Cleaner</h3>
