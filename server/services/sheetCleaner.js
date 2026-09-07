@@ -8,7 +8,7 @@ const activity = require('./activityLog');
 /** Normalise the request and work out which column indexes survive. */
 function plan(list, opts) {
   const total = list.columns.length;
-  const selected = Array.isArray(opts.columns) ? opts.columns.map(Number).filter((i) => Number.isInteger(i) && i >= 0 && i < total) : [];
+  const selected = Array.isArray(opts.columns) ? [...new Set(opts.columns.map(Number).filter((i) => Number.isInteger(i) && i >= 0 && i < total))] : [];
   const mode = opts.mode === 'delete' ? 'delete' : 'keep';
   let keep;
   if (!selected.length) keep = list.columns.map((_, i) => i);           // nothing selected: keep every column
@@ -59,7 +59,11 @@ function run(user, listId, opts) {
   } else {
     targetName = String(opts.name || '').trim() || (list.name + ' (cleaned)');
     const existing = lists.getListByName(user.id, targetName);
-    if (existing) lists.deleteList(existing.id);
+    if (existing) {
+      if (existing.id === list.id) throw new Error('The new sheet name is the same as the source sheet. Choose another name or use "Apply to this sheet".');
+      lists.assertNoPendingTasks(existing.id);
+      lists.deleteList(existing.id);
+    }
     targetId = lists.createList({ userId: user.id, name: targetName, originalName: list.original_name, kind: 'sheet_cleaner', sourceListId: list.id, columns, rows });
   }
 

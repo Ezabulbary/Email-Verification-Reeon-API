@@ -44,7 +44,7 @@ router.get('/debug-credits', auth.requireAdmin, async (req, res) => {
   for (const acc of reoon.getAccounts(false)) {
     if (!acc.api_key) { lines.push(acc.name + ': API Key not found'); continue; }
     try {
-      const r = await fetch(`${require('../config').reoon.apiBase}/check-account-balance/?key=${encodeURIComponent(acc.api_key)}`);
+      const r = await fetch(`${require('../config').reoon.apiBase}/check-account-balance/?key=${encodeURIComponent(acc.api_key)}`, { signal: AbortSignal.timeout(30000) });
       const text = await r.text();
       lines.push(acc.name + ' [' + r.status + ']:\n  ' + text.slice(0, 400));
     } catch (e) { lines.push(acc.name + ': Error: ' + e.message); }
@@ -60,7 +60,7 @@ router.get('/pending', (req, res) => {
 });
 
 router.post('/check-pending', async (req, res) => {
-  try { res.json(await llc.checkPendingTaskResults(req.user, { force: true, listId: req.body && req.body.listId ? Number(req.body.listId) : null })); }
+  try { res.json(await llc.checkPendingTaskResults(req.user, { force: true, listId: (() => { const l = req.body && req.body.listId ? lists.getList(Number(req.body.listId)) : null; return lists.canAccess(req.user, l) ? l.id : null; })() })); }
   catch (e) { res.status(500).json({ error: e.message }); }
 });
 

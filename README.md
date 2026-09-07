@@ -149,6 +149,9 @@ data/                      SQLite database (created on first run, git-ignored)
 * Passwords are bcrypt-hashed; sessions are signed, `httpOnly`, `SameSite=Lax` cookies.
 * Login is rate-limited (10 attempts / 15 min per IP + email).
 * API keys are stored in the local SQLite database and only ever shown masked.
+* Set `TRUST_PROXY=1` only when the app runs behind a reverse proxy or PaaS (Render, nginx), so client IPs are read from `X-Forwarded-For`.
+* Sessions expire after 12 hours; changing a password logs out every other session of that user.
+* CSV downloads neutralise formula-like cells (`=`, `+`, `-`, `@`) so spreadsheets never execute them.
 * Run behind HTTPS (e.g. nginx / Caddy reverse proxy) if exposed to the internet, and set a
   strong `SESSION_SECRET`.
 

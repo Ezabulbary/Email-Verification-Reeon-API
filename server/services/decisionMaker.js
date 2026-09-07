@@ -49,6 +49,13 @@ function findCols(columns) {
   };
 }
 
+/** Same verification-status rule as the run: keep deliverable/blank statuses only. */
+function statusOk(row, cols) {
+  if (cols.statusCol === -1) return true;
+  const status = row[cols.statusCol] ? String(row[cols.statusCol]).trim().toLowerCase() : '';
+  return status === '' || STATUS_PRIORITY.indexOf(status) !== -1;
+}
+
 /** Returns true if the row passes all filters (industry, country, keyword, seniority, department). */
 function rowMatches(row, cols, f) {
   const rowTitle = row[cols.titleCol] ? String(row[cols.titleCol]).toLowerCase().trim() : '';
@@ -105,7 +112,7 @@ function countLeads(listId, filters) {
   for (const r of lists.getRows(listId)) {
     const company = r.data[cols.companyCol] ? String(r.data[cols.companyCol]).trim() : '';
     if (!company) continue;
-    if (rowMatches(r.data, cols, f)) count++;
+    if (rowMatches(r.data, cols, f) && statusOk(r.data, cols)) count++;
   }
   return count;
 }
@@ -157,7 +164,7 @@ function runFilter(user, listId, filters) {
   // Write to new list "Cleaned - <name>" (replace if exists, like clearing the sheet)
   const cleanedName = 'Cleaned - ' + list.name;
   const existing = lists.getListByName(user.id, cleanedName);
-  if (existing) lists.deleteList(existing.id);
+  if (existing) { lists.assertNoPendingTasks(existing.id); lists.deleteList(existing.id); }
   const newId = lists.createList({
     userId: user.id, name: cleanedName, originalName: list.original_name, kind: 'decision_makers',
     sourceListId: list.id, columns: list.columns, rows: cleanedRows

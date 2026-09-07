@@ -289,3 +289,17 @@ pre.summary { background: var(--bg); border: 1px solid var(--border); border-rad
 .tabs .tab { background: none; border: none; border-bottom: 2px solid transparent; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--dim); cursor: pointer; font-family: inherit; margin-bottom: -1px; }
 .tabs .tab:hover { color: var(--text); }
 .tabs .tab.on { color: var(--accent); border-bottom-color: var(--accent); }
+
+/* ── Loading indicators ── */
+.topload { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 100; pointer-events: none; opacity: 0; transition: opacity .2s; overflow: hidden; }
+.topload::before { content: ''; position: absolute; top: 0; bottom: 0; left: -40%; width: 40%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: 2px; animation: topload 1.1s ease-in-out infinite; }
+.topload.on { opacity: 1; }
+@keyframes topload { 0% { left: -40%; } 100% { left: 100%; } }
+.loading-block { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 34px; color: var(--dim); font-size: 13px; }
+.loading-block .spin { margin: 0; }
+.nav .mi.running { color: var(--accent); pointer-events: none; }
+.nav .mi.running::after { content: ''; width: 12px; height: 12px; border: 2px solid rgba(79,70,229,.25); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; margin-left: auto; }
+body.busy .nav .mi:not(.running) { opacity: .55; pointer-events: none; }
+body.busy { cursor: progress; }
+.btn .spin { border-color: rgba(255,255,255,.35); border-top-color: #fff; }
+.btn:not(.primary):not(.success):not(.danger) .spin { border-color: rgba(79,70,229,.25); border-top-color: var(--accent); }

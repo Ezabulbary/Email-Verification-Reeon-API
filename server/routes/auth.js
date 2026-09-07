@@ -9,7 +9,7 @@ router.post('/login', (req, res) => {
   const password = String(req.body.password || '');
   if (!email || !password) return res.status(400).json({ error: 'Email and password are required.' });
 
-  const key = (req.ip || '') + '|' + email;
+  const key = email; // per account, so a spoofed X-Forwarded-For cannot reset the counter
   if (!auth.loginAllowed(key)) return res.status(429).json({ error: 'Too many login attempts. Try again in 15 minutes.' });
 
   const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
@@ -17,7 +17,7 @@ router.post('/login', (req, res) => {
   if (!user.active) return res.status(403).json({ error: 'This account is deactivated. Contact your admin.' });
 
   auth.loginSucceeded(key);
-  req.session.uid = user.id;
+  auth.startSession(req, user);
   db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id);
   res.json({ user: { id: user.id, email: user.email, name: user.name, role: user.role } });
 });
@@ -38,7 +38,8 @@ router.post('/password', auth.requireAuth, (req, res) => {
   if (next.length < 6) return res.status(400).json({ error: 'New password must be at least 6 characters.' });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   if (!auth.verifyPassword(user, current)) return res.status(400).json({ error: 'Current password is incorrect.' });
-  db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(auth.hashPassword(next), user.id);
+  db.prepare('UPDATE users SET password_hash = ?, session_version = COALESCE(session_version, 0) + 1 WHERE id = ?').run(auth.hashPassword(next), user.id);
+  auth.startSession(req, db.prepare('SELECT * FROM users WHERE id = ?').get(user.id)); // keep this session, drop all others
   res.json({ ok: true });
 });
 

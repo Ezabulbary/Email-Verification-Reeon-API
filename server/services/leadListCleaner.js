@@ -238,10 +238,15 @@ function writeResultsToList(task, resultObj) {
 // =============================================================================
 //  POLL - background trigger equivalent (checkPendingTaskResults)
 // =============================================================================
-let polling = false;
-async function checkPendingTaskResults(user, opts = {}) {
-  if (polling && !opts.force) return { ok: true, message: 'A poll is already running.', written: 0, remaining: getPendingTasks(user).length };
-  polling = true;
+// Polls are serialised: a second call waits for the running one instead of running concurrently.
+let pollChain = Promise.resolve();
+function checkPendingTaskResults(user, opts = {}) {
+  const run = pollChain.then(() => pollOnce(user, opts));
+  pollChain = run.catch(() => {});
+  return run;
+}
+async function pollOnce(user, opts = {}) {
+  const polling = true;
   let totalWritten = 0;
   let remaining = 0;
   const details = [];
@@ -285,7 +290,7 @@ async function checkPendingTaskResults(user, opts = {}) {
       details.push(`${task.task_id} (${task.account}): completed, ${written} row(s) written`);
     }
   } finally {
-    polling = false;
+    void polling;
   }
 
   let msg = `${totalWritten} Email Result(s) written.`;
@@ -298,10 +303,12 @@ async function checkPendingTaskResults(user, opts = {}) {
 function fastPoll(taskIds) {
   const deadline = Date.now() + 100 * 1000;
   const tick = async () => {
-    if (Date.now() > deadline) return;
-    const still = db.prepare(`SELECT COUNT(*) AS c FROM pending_tasks WHERE task_id IN (${taskIds.map(() => '?').join(',')})`).get(...taskIds).c;
-    if (!still) return;
-    try { await checkPendingTaskResults(null); } catch (e) { console.log('fastPoll error: ' + e.message); }
+    try {
+      if (Date.now() > deadline) return;
+      const still = db.prepare(`SELECT COUNT(*) AS c FROM pending_tasks WHERE task_id IN (${taskIds.map(() => '?').join(',')})`).get(...taskIds).c;
+      if (!still) return;
+      await checkPendingTaskResults(null);
+    } catch (e) { console.log('fastPoll error: ' + e.message); }
     setTimeout(tick, 10 * 1000);
   };
   setTimeout(tick, 10 * 1000);

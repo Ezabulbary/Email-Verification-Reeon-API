@@ -9,7 +9,7 @@ const { db } = require('../db');
 const API_BASE = config.reoon.apiBase;
 
 async function fetchJson(url, options) {
-  const res = await fetch(url, options);
+  const res = await fetch(url, Object.assign({ signal: AbortSignal.timeout(45000) }, options || {}));
   const text = await res.text();
   let json = null;
   try { json = JSON.parse(text); } catch (e) { json = { raw: text }; }

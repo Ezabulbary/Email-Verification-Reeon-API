@@ -26,7 +26,8 @@ router.get('/', (req, res) => {
   });
 });
 
-router.post('/accounts', async (req, res) => {
+router.post('/accounts', async (req, res, next) => {
+  try {
   const name = String(req.body.name || '').trim();
   const apiKey = String(req.body.apiKey || '').trim();
   if (!/^[A-Za-z0-9_.-]{1,60}$/.test(name)) return res.status(400).json({ error: 'Account name: letters, numbers, _ . - only.' });
@@ -37,9 +38,11 @@ router.post('/accounts', async (req, res) => {
   const acc = db.prepare('SELECT * FROM api_accounts WHERE id = ?').get(info.lastInsertRowid);
   const bal = await reoon.getCreditBalance(acc, true);
   res.json({ ok: true, id: acc.id, balance: bal, warning: bal ? null : 'Account saved, but the balance check failed - verify the key.' });
+  } catch (e) { next(e); }
 });
 
-router.patch('/accounts/:id', async (req, res) => {
+router.patch('/accounts/:id', async (req, res, next) => {
+  try {
   const id = Number(req.params.id);
   const acc = db.prepare('SELECT * FROM api_accounts WHERE id = ?').get(id);
   if (!acc) return res.status(404).json({ error: 'Account not found.' });
@@ -57,6 +60,7 @@ router.patch('/accounts/:id', async (req, res) => {
   let balance = null;
   if (b.apiKey !== undefined) balance = await reoon.getCreditBalance(updated, true);
   res.json({ ok: true, balance });
+  } catch (e) { next(e); }
 });
 
 router.delete('/accounts/:id', (req, res) => {

@@ -33,7 +33,7 @@
   };
   const icon = (name, size) => `<svg class="ic" width="${size || 16}" height="${size || 16}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[name] || ''}</svg>`;
   /** Server messages: strip pictograms / em dashes so the UI stays plain */
-  const clean = (t) => String(t === null || t === undefined ? '' : t).replace(/[\p{Extended_Pictographic}]\uFE0F? ?/gu, '').replace(/-/g, '-');
+  const clean = (t) => String(t === null || t === undefined ? '' : t).replace(/[\p{Extended_Pictographic}]\uFE0F? ?/gu, '').replace(/\u2014/g, '-');
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const $ = (sel, el) => (el || document).querySelector(sel);
@@ -45,13 +45,26 @@
   const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
   const colLetter = (i) => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
 
+  // Thin progress bar at the top while any request is in flight
+  let inflight = 0;
+  function setLoading(delta) {
+    inflight = Math.max(0, inflight + delta);
+    const bar = $('#topload'); if (bar) bar.classList.toggle('on', inflight > 0);
+    document.body.classList.toggle('loading', inflight > 0);
+  }
+  const loadingBlock = (text) => `<div class="loading-block"><span class="spin"></span>${esc(text || 'Loading')}</div>`;
+
   async function api(path, opts = {}) {
     const o = { method: opts.method || 'GET', headers: {} };
     if (opts.body instanceof FormData) o.body = opts.body;
     else if (opts.body !== undefined) { o.headers['Content-Type'] = 'application/json'; o.body = JSON.stringify(opts.body); }
-    const res = await fetch('/api' + path, o);
+    setLoading(1);
+    let res;
+    try { res = await fetch('/api' + path, o); }
+    catch (e) { setLoading(-1); throw new Error('Cannot reach the server. Check your connection and try again.'); }
     let data = {};
     try { data = await res.json(); } catch (e) { /* ignore */ }
+    setLoading(-1);
     if (res.status === 401 && !path.startsWith('/auth/')) { state.user = null; render(); throw new Error('Session expired - please log in again.'); }
     if (!res.ok) throw new Error(data.error || ('Request failed (' + res.status + ')'));
     return data;
@@ -145,8 +158,8 @@
   const routes = { '': 'overview', overview: 'overview', sheets: 'sheets', list: 'sheet', activity: 'activity', users: 'users', settings: 'settings', account: 'account', help: 'help', cleaner: 'cleaner' };
   const parseHash = () => { const [name, ...args] = location.hash.replace(/^#\/?/, '').split('/'); return { name: name || '', args }; };
   window.addEventListener('hashchange', render);
+  document.addEventListener('click', (e) => { if (!e.target.closest('#me')) { const m = $('#me-menu'); if (m) { m.hidden = true; $('#me').classList.remove('open'); } } });
   const isAdmin = () => state.user && state.user.role === 'admin';
-  window.addEventListener('hashchange', () => { renderNav(); updateSheetBadge(); });
 
   async function boot() {
     try { state.user = (await api('/auth/me')).user; } catch (e) { state.user = null; }
@@ -164,11 +177,12 @@
     if (!state.activeId && state.lists.length) state.activeId = state.lists[0].id;
   }
   async function loadCredits(force) {
+    const pill0 = $('#credits-pill'); if (pill0) pill0.innerHTML = '<span class="spin"></span>Credits';
     try { state.credits = await api('/verify/credits' + (force ? '?refresh=1' : '')); } catch (e) { state.credits = null; }
     const pill = $('#credits-pill'); if (pill) pill.innerHTML = creditsPill();
     renderNav();
   }
-  const creditsPill = () => (state.credits ? `Total Daily: <b>${num(state.credits.totalDaily)}</b> &nbsp;|&nbsp; Instant: <b>${num(state.credits.totalInstant)}</b>` : 'credits…');
+  const creditsPill = () => (state.credits ? `Total Daily: <b>${num(state.credits.totalDaily)}</b> &nbsp;|&nbsp; Instant: <b>${num(state.credits.totalInstant)}</b>` : 'Credits unavailable');
 
   /** = SpreadsheetApp.getActiveSheet(): the list on screen, else the one chosen in the top bar */
   function activeList() {
@@ -223,7 +237,6 @@
     $('#menu-btn').onclick = () => $('#sidebar').classList.toggle('open');
     $('#me-btn').onclick = () => { const m = $('#me-menu'); m.hidden = !m.hidden; $('#me').classList.toggle('open', !m.hidden); };
     $('#me-logout').onclick = () => runAction('logout');
-    document.addEventListener('click', (e) => { if (!e.target.closest('#me')) { const m = $('#me-menu'); if (m) { m.hidden = true; $('#me').classList.remove('open'); } } });
     $('#sidebar-bg').onclick = () => $('#sidebar').classList.remove('open');
     updateSheetBadge();
     views[view](parseHash().args).catch((e) => { $('#content').innerHTML = `<div class="alert err">${esc(e.message)}</div>`; });
@@ -284,9 +297,12 @@
   // ── Menu actions (= the sheet's menu functions) ────────────────────────────
   let actionRunning = null;
   async function runAction(action) {
-    if (actionRunning) { toast('"' + actionRunning + '" is still running - please wait for it to finish.', 'err'); return; }
+    if (actionRunning) { toast('Another action is still running. Please wait for it to finish.', 'err'); return; }
     actionRunning = action.split(':')[0];
-    try { return await runActionInner(action); } finally { actionRunning = null; }
+    const el = $(`.nav .mi[data-action="${action}"]`); if (el) el.classList.add('running');
+    document.body.classList.add('busy');
+    try { return await runActionInner(action); }
+    finally { actionRunning = null; document.body.classList.remove('busy'); $$('.nav .mi.running').forEach((m) => m.classList.remove('running')); }
   }
   async function runActionInner(action) {
     const [name, arg] = action.split(':');
@@ -501,7 +517,7 @@
 
   views.overview = async () => {
     setTitle('Overview');
-    const c = $('#content'); c.innerHTML = '<div class="empty">Loading…</div>';
+    const c = $('#content'); c.innerHTML = loadingBlock();
     const [pending, act] = await Promise.all([api('/verify/pending'), api('/activity?limit=8')]);
     if (!state.credits) await loadCredits(false);
     const cr = state.credits || { accounts: [], totalDaily: 0, totalInstant: 0 };
@@ -528,7 +544,7 @@
         <div class="card"><h3>Pending verification tasks <span class="right"><button class="btn sm" data-run="check-pending">Check Pending Results</button></span></h3>${pendingTable(pending.tasks)}</div>
         <div class="card"><h3>Recent activity <span class="right"><a class="btn sm ghost" href="#/activity">View all →</a></span></h3>${activityTable(act.rows, true)}</div>
       </div>`;
-    $$('[data-run]', c).forEach((b) => b.onclick = () => runAction(b.dataset.run).catch((e) => uiAlert(e.message)));
+    $$('[data-run]', c).forEach((b) => b.onclick = async () => { const html = b.innerHTML; b.disabled = true; b.innerHTML = '<span class="spin"></span>' + b.textContent.trim(); try { await runAction(b.dataset.run); } catch (e) { uiAlert(e.message); } finally { if (document.body.contains(b)) { b.disabled = false; b.innerHTML = html; } } });
   };
 
   function pendingTable(tasks) {
@@ -572,9 +588,11 @@
 
   views.sheet = async (args) => {
     const id = Number(args[0]);
-    const c = $('#content'); c.innerHTML = '<div class="empty">Loading…</div>';
-    let page = 0;
+    const c = $('#content'); c.innerHTML = loadingBlock();
+    state.pages = state.pages || {};
+    let page = state.pages[id] || 0;
     const draw = async () => {
+      state.pages[id] = page;
       const r = await api(`/lists/${id}?limit=${PAGE}&offset=${page * PAGE}`);
       const { list, rows, stats: st } = r;
       setActive(list.id); setTitle(list.name);
@@ -804,6 +822,7 @@
       clearTimeout(countTimer);
       const run = $('#sc-run'), sum = $('#sc-summary'); if (!run) return;
       if (!list) { run.disabled = true; sum.textContent = ''; return; }
+      sum.innerHTML = '<span class="spin"></span>Calculating';
       countTimer = setTimeout(async () => {
         try {
           const p = await api('/sheet-cleaner/preview', { method: 'POST', body: { listId: list.id, columns: [...st.selected], mode: st.mode, dropBlankEmail: st.dropBlank } });
@@ -920,10 +939,12 @@
     $('#login-form').onsubmit = async (e) => {
       e.preventDefault();
       const f = e.target;
+      const btn = $('button[type=submit]', f); btn.disabled = true; btn.innerHTML = '<span class="spin"></span>Signing in';
       try {
         state.user = (await api('/auth/login', { method: 'POST', body: { email: f.email.value, password: f.password.value } })).user;
         await afterLogin(); render();
-      } catch (err) { console.error(err); const el = $('#login-err'); if (el) el.innerHTML = `<div class="alert err">${esc(err.message)}</div>`; else toast(err.message, 'err'); }
+      } catch (err) {
+        btn.disabled = false; btn.textContent = 'Sign in'; console.error(err); const el = $('#login-err'); if (el) el.innerHTML = `<div class="alert err">${esc(err.message)}</div>`; else toast(err.message, 'err'); }
     };
   }
 

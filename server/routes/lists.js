@@ -79,7 +79,8 @@ function computeStats(list) {
   return stats;
 }
 
-router.get('/:id/download', loadList, async (req, res) => {
+router.get('/:id/download', loadList, async (req, res, next) => {
+  try {
   const rows = lists.getRows(req.list.id).map((r) => r.data);
   const safe = req.list.name.replace(/[^\w.\- ]+/g, '_').trim() || 'list';
   if (req.query.format === 'xlsx') {
@@ -91,6 +92,7 @@ router.get('/:id/download', loadList, async (req, res) => {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${safe}.csv"`);
   res.send('﻿' + fileParser.toCsv(req.list.columns, rows));
+  } catch (e) { next(e); }
 });
 
 router.patch('/:id', loadList, (req, res) => {

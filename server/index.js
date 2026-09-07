@@ -10,7 +10,8 @@ const workers = require('./services/workers');
 
 const app = express();
 app.disable('x-powered-by');
-app.set('trust proxy', 1);
+// Only trust X-Forwarded-* headers when explicitly behind a reverse proxy (Render, nginx, ...)
+if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
 
 app.use(express.json({ limit: '5mb' }));
 app.use(auth.session);
@@ -36,8 +37,9 @@ app.get('*', (req, res) => res.sendFile(path.join(__dirname, '..', 'public', 'in
 // eslint-disable-next-line no-unused-vars
 app.use((err, req, res, next) => {
   if (err && err.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'File too large (max 50 MB).' });
-  console.error(err);
-  res.status(500).json({ error: err.message || 'Server error' });
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) console.error(err);
+  res.status(status).json({ error: status >= 500 ? 'Server error' : (err.message || 'Request error') });
 });
 
 app.listen(config.port, () => {

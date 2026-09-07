@@ -166,6 +166,15 @@ function clearPendingRows(listId) {
   return setCells(listId, updates);
 }
 
+/** Refuse to delete/replace a list that still has Reoon tasks running (results would be lost). */
+function assertNoPendingTasks(listId) {
+  const c = db.prepare('SELECT COUNT(*) AS c FROM pending_tasks WHERE list_id = ?').get(listId).c;
+  if (c > 0) {
+    const l = getList(listId);
+    throw new Error(`"${l ? l.name : 'Sheet'}" still has ${c} running verification task(s). Run "Check Pending Results" first, or choose another name.`);
+  }
+}
+
 function canAccess(user, list) {
   return !!list && (user.role === 'admin' || list.user_id === user.id);
 }
@@ -175,5 +184,5 @@ module.exports = {
   findHeader, isValidEmail, norm,
   createList, getList, getListByName, listsForUser, getRows, getRowsPage,
   addColumn, setCells, replaceContents, deleteList, renameList, ensureVerificationColumns,
-  countPendingRows, clearPendingRows, canAccess
+  countPendingRows, clearPendingRows, canAccess, assertNoPendingTasks
 };

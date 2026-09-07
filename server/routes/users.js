@@ -37,7 +37,7 @@ router.patch('/:id', (req, res) => {
   if (b.role !== undefined || b.active !== undefined) {
     // Never lock out the last active admin
     const isDemote = (b.role !== undefined && b.role !== 'admin') || (b.active !== undefined && !b.active);
-    if (user.role === 'admin' && isDemote) {
+    if (user.role === 'admin' && user.active && isDemote) {
       const admins = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = 1").get().c;
       if (admins <= 1) return res.status(400).json({ error: 'Cannot demote/deactivate the last active admin.' });
     }
@@ -48,7 +48,7 @@ router.patch('/:id', (req, res) => {
   if (b.active !== undefined) db.prepare('UPDATE users SET active = ? WHERE id = ?').run(b.active ? 1 : 0, id);
   if (b.password !== undefined) {
     if (String(b.password).length < 6) return res.status(400).json({ error: 'Password must be at least 6 characters.' });
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(auth.hashPassword(String(b.password)), id);
+    db.prepare('UPDATE users SET password_hash = ?, session_version = COALESCE(session_version, 0) + 1 WHERE id = ?').run(auth.hashPassword(String(b.password)), id);
   }
   res.json({ user: db.prepare(`SELECT ${cols} FROM users WHERE id = ?`).get(id) });
 });
@@ -58,7 +58,7 @@ router.delete('/:id', (req, res) => {
   if (id === req.user.id) return res.status(400).json({ error: 'You cannot delete yourself.' });
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id);
   if (!user) return res.status(404).json({ error: 'User not found.' });
-  if (user.role === 'admin') {
+  if (user.role === 'admin' && user.active) {
     const admins = db.prepare("SELECT COUNT(*) AS c FROM users WHERE role = 'admin' AND active = 1").get().c;
     if (admins <= 1) return res.status(400).json({ error: 'Cannot delete the last admin.' });
   }

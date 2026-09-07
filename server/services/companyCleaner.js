@@ -48,6 +48,7 @@ ${promptLines.join('\n')}
 async function callChatGptBatch(prompt, apiKey, model) {
   const res = await fetch(`${config.openai.apiBase}/chat/completions`, {
     method: 'POST',
+    signal: AbortSignal.timeout(120000),
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({
       model: model || 'gpt-4o-mini',
@@ -97,10 +98,11 @@ function startCleaning(user, listId, overwrite) {
   const companyCol = source.columns.findIndex((h) => /^(company|company name)$/i.test(String(h).trim()));
   if (companyCol === -1) return { ok: false, message: '"Company" or "Company Name" column not found.' };
 
-  if (existing) lists.deleteList(existing.id);
+  if (existing && existing.id === source.id) return { ok: false, message: 'Select the original sheet, not the cleaning tab itself.' };
 
-  // Duplicate the list
+  // Duplicate the list (read BEFORE deleting the old cleaning tab)
   const rows = lists.getRows(source.id).map((r) => r.data);
+  if (existing) { lists.assertNoPendingTasks(existing.id); lists.deleteList(existing.id); }
   const newId = lists.createList({
     userId: user.id, name: newName, originalName: source.original_name, kind: 'company_clean',
     sourceListId: source.id, columns: source.columns, rows
@@ -124,7 +126,7 @@ function startCleaning(user, listId, overwrite) {
     .run(user.id, newId, source.id, companyCol, cleanCol, websiteCol === -1 ? null : websiteCol, activityId);
   const jobId = Number(info.lastInsertRowid);
 
-  runJob(jobId); // background
+  runJob(jobId).catch((e) => { updateJob(jobId, { status: 'error', error: e.message }); finishActivity(jobId, 'error'); }); // background
 
   return { ok: true, jobId, listId: newId, message: `Created target tab: "${newName}"\n\nStarting high-speed cleaning process...` };
 }
@@ -221,7 +223,7 @@ function finishActivity(jobId, status) {
 
 /** Resume jobs left "running" after a restart. */
 function resumeJobs() {
-  db.prepare("SELECT id FROM clean_jobs WHERE status = 'running'").all().forEach((j) => runJob(j.id));
+  db.prepare("SELECT id FROM clean_jobs WHERE status = 'running'").all().forEach((j) => runJob(j.id).catch((e) => { updateJob(j.id, { status: 'error', error: e.message }); finishActivity(j.id, 'error'); }));
 }
 
 // =============================================================================

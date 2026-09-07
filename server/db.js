@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS users (
   role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('admin','user')),
   active        INTEGER NOT NULL DEFAULT 1,
   created_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  last_login_at TEXT
+  last_login_at TEXT,
+  session_version INTEGER NOT NULL DEFAULT 0
 );
 
 -- Reoon API accounts (one row per account, same as the Google Sheet tab names)
@@ -137,6 +138,8 @@ CREATE TABLE IF NOT EXISTS clean_jobs (
 try {
   const cols = db.prepare('PRAGMA table_info(lists)').all().map((c) => c.name);
   if (cols.indexOf('source_url') === -1) db.exec('ALTER TABLE lists ADD COLUMN source_url TEXT');
+  const ucols = db.prepare('PRAGMA table_info(users)').all().map((c) => c.name);
+  if (ucols.indexOf('session_version') === -1) db.exec('ALTER TABLE users ADD COLUMN session_version INTEGER NOT NULL DEFAULT 0');
 } catch (e) { console.warn('Migration warning: ' + e.message); }
 
 // ── Settings helpers ─────────────────────────────────────────────────────────

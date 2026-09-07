@@ -25,12 +25,15 @@ async function fetchCsv(id, gid) {
   const url = `${EXPORT_BASE}/spreadsheets/d/${id}/export?format=csv&gid=${encodeURIComponent(gid)}`;
   let res;
   try {
-    res = await fetch(url, { redirect: 'follow', headers: { 'User-Agent': 'Mozilla/5.0 (EmailVerifierDashboard)' } });
+    res = await fetch(url, { redirect: 'follow', signal: AbortSignal.timeout(60000), headers: { 'User-Agent': 'Mozilla/5.0 (EmailVerifierDashboard)' } });
   } catch (e) {
     throw new Error('Could not reach Google Sheets: ' + e.message);
   }
   const ctype = (res.headers.get('content-type') || '').toLowerCase();
+  const MAX = 50 * 1024 * 1024;
+  if (Number(res.headers.get('content-length') || 0) > MAX) throw new Error('The Google Sheet export is larger than 50 MB.');
   const buf = Buffer.from(await res.arrayBuffer());
+  if (buf.length > MAX) throw new Error('The Google Sheet export is larger than 50 MB.');
   const head = buf.slice(0, 300).toString('utf8').toLowerCase();
   if (res.status === 404) throw new Error('Google Sheet not found. Check the link (and the gid of the tab).');
   if (!res.ok || ctype.indexOf('text/html') !== -1 || head.indexOf('<html') !== -1 || head.indexOf('<!doctype') !== -1) {

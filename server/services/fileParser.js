@@ -64,8 +64,13 @@ function detectDelimiter(text) {
   return Object.keys(counts).reduce((a, b) => (counts[b] > counts[a] ? b : a), ',');
 }
 
+/** Cells starting with = + - @ or a tab/CR are prefixed with an apostrophe so spreadsheet apps never treat them as formulas. */
+function guardCell(v) {
+  const str = v === null || v === undefined ? '' : String(v);
+  return /^[=+\-@\t\r]/.test(str) ? "'" + str : str;
+}
 function toCsv(columns, rows) {
-  return stringify([columns, ...rows]);
+  return stringify([columns.map(guardCell), ...rows.map((r) => r.map(guardCell))]);
 }
 
 async function toXlsxBuffer(columns, rows, sheetName) {
